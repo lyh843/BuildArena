@@ -1,0 +1,92 @@
+{
+  "runtimeStory": "研究者通过构建命令行入口选择模型、任务类别、难度、样本数和工作进程数。命令行程序将 levels.yaml、prompt.yaml 与 config.py 整合为实验目录和 SQLite 任务图。调度器进程从 SQLite 领取各阶段任务，AutoGen 团队则把规划转换为经过碰撞检查的 Machine 或 Assembly 操作历史与 Besiege BSG 文件。独立的仿真命令会复制实验数据，准备任务专用的 BSG/Lua 输入，并驱动 Besiege 图形界面采集轨迹 CSV。离线分析器最后重建采样路径，或评估运输、支撑和抬升轨迹并保存指标。",
+  "flow": [
+    ["命令行 → 实验", "从九种基准任务中选择一项，并保存解析后的提示词与配置。"],
+    ["SQLite → 工作进程", "轮询待处理或可重试任务，并启动数量受限的本地进程。"],
+    ["智能体 → 空间工具", "完成规划、审查、构建、优化、组装以及运输控制设计。"],
+    ["空间模型 → 产物", "校验几何结构，并写入可重放的 JSON、对话记录和 BSG 机器。"],
+    ["仿真 → Besiege", "准备分类测试装置、操作游戏界面并采集 Lua 轨迹日志。"],
+    ["CSV/DB → 分析", "计算构建统计、成功判定和运动指标。"]
+  ],
+  "testSegments": [],
+  "modules": {
+    "script": {
+      "purpose": "面向用户的命令行入口将基准配置连接到构建、仿真和屏幕坐标校准流程。",
+      "keyAreas": [
+        "run_construction.py — 选择任务与模型并创建采样数据库",
+        "run_simulation.py — 将一次构建运行复制为仿真运行",
+        "find_coords.py — 校准图形界面点击位置的比例坐标"
+      ],
+      "runtime": "在每个工作流开始时运行于研究者的终端。",
+      "testOnly": false
+    },
+    "scheduler": {
+      "purpose": "基于 SQLite 的任务图和轮询调度器把工作分发到本地进程，并路由流水线的各个阶段。",
+      "keyAreas": [
+        "task_db.py — Config、Task、Machine 记录及其状态转换",
+        "scheduler.py — 轮询、并发限制和组装汇合",
+        "runner.py — 七个任务阶段的处理函数",
+        "worker.py — asyncio 生命周期、重试和产物持久化"
+      ],
+      "runtime": "持续运行在构建或仿真命令行进程中，直到任务完成或超时。",
+      "testOnly": false
+    },
+    "spatial": {
+      "purpose": "领域核心负责建模 Besiege 几何结构与机器，向智能体提供安全的构建和控制工具，并导出可重放的机器产物。",
+      "keyAreas": [
+        "build.py — Block、Machine、Assembly、碰撞检查、控制和 BSG 导出",
+        "components.py — 向量、四元数、几何结构和可连接表面",
+        "agent.py — 用于规划、草拟、构建和控制的 AutoGen 团队",
+        "utils.py — 操作注册、变换和场景预览"
+      ],
+      "runtime": "在每个由智能体驱动的构建或控制阶段由工作进程加载。",
+      "testOnly": false
+    },
+    "agents": {
+      "purpose": "根据用户本地的 API 密钥配置，为兼容 OpenAI 的服务商和 Anthropic 创建模型客户端注册表。",
+      "keyAreas": [
+        "agents/__init__.py — 服务商模型列表与 AutoGen 客户端构建",
+        "config.py — 导入时读取的用户 API 密钥",
+        "model_clients — spatial.agent 使用的模型名称查询表"
+      ],
+      "runtime": "在构建工作进程导入 Python 模块时初始化。",
+      "testOnly": false
+    },
+    "simulation": {
+      "purpose": "各任务适配器会重建生成的机器、添加评测装置和 Lua 跟踪逻辑，再自动操作 Besiege 生成轨迹 CSV。",
+      "keyAreas": [
+        "simulation_transport.py — 货物、车轮跟踪和开环控制",
+        "simulation_support.py — 桥梁地形和逐步增加的压载负荷",
+        "simulation_lift.py — 推进器激活和抬升跟踪",
+        "operations.py — 桌面聚焦、点击、按键自动化和 CSV 清理"
+      ],
+      "runtime": "针对本地已打开的 Besiege 会话逐个运行仿真任务。",
+      "testOnly": false
+    },
+    "analyze": {
+      "purpose": "离线评测代码对各类轨迹评分，并汇总任务谱系、令牌用量、耗时和构建成本。",
+      "keyAreas": [
+        "sim_common.py — 稳健的 CSV 解析、共享指标和类别路由",
+        "sim_transport.py — 轨迹与货物运送评分",
+        "sim_support.py — 承载能力评分",
+        "sim_lift.py — 推进与上升评分",
+        "sampling_path_analysis.py — SQLite 谱系重建和表格统计"
+      ],
+      "runtime": "在构建或仿真之后手动调用，不由调度器自动执行。",
+      "testOnly": false
+    },
+    "blocks": {
+      "purpose": "数据驱动的目录定义可用的 Besiege 方块、连接件、物理元数据、成本、控制方式和提示词描述。",
+      "keyAreas": [
+        "configs — 由 spatial.build 加载的八个 YAML 方块定义",
+        "descriptors/torch.py — 火炬方向与加热效果的动态描述",
+        "descriptors/water_cannon.py — 水炮方向与蒸汽效果的动态描述"
+      ],
+      "runtime": "在 spatial 模块初始化方块工厂和智能体工具描述时读取。",
+      "testOnly": false
+    },
+    "asset": {
+      "purpose": "包含文档媒体和三个 Besiege 支撑任务关卡文件；运行时不执行代码。"
+    }
+  }
+}

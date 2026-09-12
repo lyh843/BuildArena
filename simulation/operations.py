@@ -54,15 +54,17 @@ def os_click(x, y):
 def windows_focus_window(window_name):
     """Windows-specific implementation of window focusing."""
     import win32gui
+    windows = []
     def _window_enum_callback(hwnd, wildcard):
-        if str(wildcard).lower() in str(win32gui.GetWindowText(hwnd)).lower():
-            win32gui.SetForegroundWindow(hwnd)
-            return True
+        if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd).casefold() == str(wildcard).casefold():
+            windows.append(hwnd)
     try:
         win32gui.EnumWindows(_window_enum_callback, window_name)
+        if not windows:
+            return False
+        win32gui.SetForegroundWindow(windows[0])
     except Exception as e:
-        raise RuntimeError(f"Warning: Could not focus window '{window_name}'. Error: {e}")
-        return False
+        raise RuntimeError(f"Could not focus window '{window_name}'. Error: {e}") from e
     return True
 
 def macos_focus_window(window_name):
@@ -188,17 +190,18 @@ def run_simulation_sequence(machine_name: str, output_dir: str, duration: float,
     # Create output file path
     csv_file = f"{output_dir}/simulation_log_{machine_name}.csv"
 
-    # Initialize clean CSV file
-    if os.path.exists(csv_file):
-        os.remove(csv_file)
-    
     print(f"Starting simulation sequence for machine: {machine_name}")
     print(f"Duration: {duration} seconds")
     print(f"Output CSV: {csv_file}")
     
     # Step 0: Ensure keyboard setup and focus on Besiege window
-    focus_window("Besiege")
+    if not focus_window("Besiege"):
+        raise RuntimeError("Besiege window not found. No input was sent.")
     wait(1.0)
+
+    # Keep existing logs intact if the game is not available.
+    if os.path.exists(csv_file):
+        os.remove(csv_file)
     
     # Step 1: Click Open Folder, wait 1s
     print("Step 1: Clicking Open Folder...")

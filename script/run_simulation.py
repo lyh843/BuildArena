@@ -8,9 +8,20 @@ import os
 import yaml
 import shutil
 import json
+import sqlite3
 
 from scheduler.task_db import * 
 from scheduler.scheduler import Scheduler
+
+def required_scene(db_path: str) -> str:
+    category, level = os.path.basename(os.path.dirname(db_path)).split("_")[:2]
+    return f"support_{level}" if category == "support" else "Barren Expanse"
+
+def validate_scenes(db_paths):
+    scenes = {required_scene(path) for path in db_paths}
+    if len(scenes) > 1:
+        raise ValueError(f"Run each scene separately; requested scenes: {sorted(scenes)}")
+    return next(iter(scenes), None)
 
 def load_levels_yaml(levels_file="levels.yaml"):
     """Load and parse the levels.yaml file to extract available categories and difficulty levels."""
@@ -61,7 +72,8 @@ def init_simulation_db(
     shutil.copytree(original_machine_dir, sim_machine_dir, dirs_exist_ok=True)
 
     # Duplicate the original db to the simulation db
-    shutil.copy(original_db_path, sim_db_path)
+    with sqlite3.connect(original_db_path) as source, sqlite3.connect(sim_db_path) as target:
+        source.backup(target)
 
     original_config = fetch_simulation_config(db_path=sim_db_path)
     config_dict = original_config.config
@@ -104,7 +116,7 @@ def init_simulation_db(
         else:
             add_simulation_task(plan_id=plan_id, content=task_content, stage=stage, config_id=config_id, proj_name=proj_name_for_db, db_path=sim_db_path, rfd_only=rfd_only)
 
-def main(original_db_path: str = None, rfd_only: bool = True, max_workers: int = 4, resume: bool = False):
+def main(original_db_path: str = None, rfd_only: bool = True, max_workers: int = 4, resume: bool = False, timeout: int | None = None):
     assert original_db_path, "db_path is required"
     
     original_proj_dir = os.path.dirname(original_db_path)
@@ -142,12 +154,22 @@ def main(original_db_path: str = None, rfd_only: bool = True, max_workers: int =
     clean_tasks(sim_db_path)
 
     # Initialize scheduler with project settings
-    if category == "transport":
-        timeout = 14400  # 4 hours
-    else:
-        timeout = 5400  # 1.5 hours
+    if timeout is None:
+        timeout = 14400 if category == "transport" else 5400
     scheduler = Scheduler.from_db_path(sim_db_path, timeout=timeout)
     scheduler.run(break_on_complete=True)
+    from analyze.sim_common import route_simulation_analysis
+    simulations = fetch_tasks_by_stage(stage="simulation", db_path=sim_db_path)
+    results = []
+    for task in simulations:
+        if task.status == "completed" and task.result_path:
+            result = route_simulation_analysis(task.result_path)
+            result["bind_plan"] = task.bind_plan
+            results.append(result)
+    with open(os.path.join(sim_proj_dir, "simulation_metrics.json"), "w", encoding="utf-8") as stream:
+        json.dump(results, stream, indent=2)
+    if not simulations or any(task.status != "completed" for task in simulations):
+        raise RuntimeError(f"Simulation pipeline incomplete; inspect {sim_db_path}")
     print(f"Simulation completed: {sim_db_path}")
 
 if __name__ == "__main__":
@@ -170,18 +192,21 @@ if __name__ == "__main__":
                       required=False,
                       default=4,
                       help='Maximum number of workers to use for simulation')
-    parser.add_argument('--resume', '-rs', 
+    parser.add_argument('--resume', '-rs',
                       action='store_true', 
                       required=False,
                       help='Resume the simulation from the simulation db of the given task db')
+    parser.add_argument('--timeout', type=int, help='Overall timeout in seconds')
     # Parse arguments first to check for level-based mode
     args = parser.parse_args()
+    if args.max_workers < 1 or (args.timeout is not None and args.timeout <= 0):
+        parser.error('Worker count and timeout must be positive')
     if args.todo:
         with open(args.todo, 'r', encoding='utf-8') as f:
             todo_list = json.load(f)
         
         # Deduplicate the todo list
-        todo_list = list(set(todo_list))
+        todo_list = list(dict.fromkeys(todo_list))
 
         # Remove non-existent db paths
         todo_list = [db_path for db_path in todo_list if os.path.exists(db_path)]
@@ -193,9 +218,7 @@ if __name__ == "__main__":
         
         assert len(todo_list) > 0, "Todo list is empty"
         print(f"Todo list: {todo_list}")
-        # If support task is in the todo list, assert they all have same level
-        if "support" in todo_list:
-            assert len(set([db_path.split("_")[1] for db_path in todo_list])) == 1, "Support tasks must have same level"
+        validate_scenes(todo_list)
     
     else:
         assert args.db
@@ -219,5 +242,5 @@ if __name__ == "__main__":
     if len(filtered_todo_list) == 0:
         print("No simulation to run")
         exit()
-    for db_path in todo_list:
-        main(original_db_path=db_path, rfd_only=args.rfd, max_workers=args.max_workers, resume=args.resume)
+    for db_path in filtered_todo_list:
+        main(original_db_path=db_path, rfd_only=args.rfd, max_workers=args.max_workers, resume=args.resume, timeout=args.timeout)

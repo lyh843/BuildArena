@@ -86,6 +86,9 @@ def worker_process(task: Task):
         # Mark task as failed in the database
         from scheduler.task_db import mark_task_failed
         mark_task_failed(task.id, f"{error_type}: {error_msg}", task.db_path)
+        if task.stage == "simulation":
+            # GUI errors need inspection; blindly repeating input is unsafe.
+            mark_simulation_task(task.id, "error", task.db_path)
     finally:
         # Cancel all running tasks
         pending = asyncio.all_tasks(loop)

@@ -1,0 +1,7 @@
+# Native Windows game automation only. Construction stays in the WSL environment.
+pillow>=11.2.1
+pyautogui>=0.9.54
+pyperclip
+pynput>=1.8.1
+python-dotenv>=1.1.0
+pywin32>=311

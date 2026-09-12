@@ -9,7 +9,7 @@ from typing import Literal
 import random
 
 from spatial.build import Assembly, Machine
-from simulation.operations import run_simulation_sequence
+from simulation.dispatch import run_simulation_sequence
 
 from config import SavedMachines
 
@@ -34,14 +34,12 @@ def main(machine_json: str, level: Literal["soft", "medium", "hard"]):
         machine = Machine(name=f"{machine_id}_sim", save_dir=save_dir, db_path=db_path)
         machine.from_file(file_path=machine_json)
 
-    if level != "soft":
     # Initialize control config
-        machine._init_control_config()
-        # Press all keys for 30 seconds, as described in the Task Evaluation Protocol
-        for block in machine.blocks.values():
-            if block.name == "Water Cannon":
-                machine.change_control_key(block_id=block.local_id, action="hold_to_fire", new_key="Alpha1")
-        machine.add_control_sequence(time=2, key="Alpha1", hold_for=30)
+    machine._init_control_config()
+    for block in machine.blocks.values():
+        if block.name == "Water Cannon":
+            machine.change_control_key(block_id=block.local_id, action="hold_to_fire", new_key="Alpha1")
+    machine.add_control_sequence(time=2, key="Alpha1", hold_for=10 if level == "soft" else 30)
 
     # Track all blocks except the starting block
     blocks = [block for block in machine.blocks.values() if block.name != "Starting Block"]

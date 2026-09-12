@@ -90,51 +90,59 @@ Install [uv](https://github.com/astral-sh/uv) following the official guidance.
 uv sync
 ```
 
-### Step 3: Configure API Keys and Paths
+### Alternative: Use Conda
 
-Create a `config.py` file in the project root directory with the following content:
+Instead of Steps 1 and 2, run the following from the repository root:
 
-> **💡 Tip:** For the UI position coordinates below, you can keep the default values for now. Later, when you need to run simulations, we provide a convenient `find_coords` tool to help you calibrate these positions for your specific screen setup (see [Step 6 in Simulation Process](#6-calibrate-ui-positions-optional)).
-
-```python
-# Path of the directory where all the machines will be saved as BSG files
-# SavedMachines of the Besiege game (you can find it in the Steam) is recommended
-SavedMachines = "/path/to/Besiege/Contents/SavedMachines"
-
-# API keys for the LLMs
-# Leave an API_KEY as it is if it's not provided by you
-API_KEY_OAI = "<Your OpenAI API key>"
-API_KEY_DS = "<Your DeepSeek API key>"
-API_KEY_ANT = "<Your Anthropic API key>"
-API_KEY_ARC = "<Your Arc API key>"
-API_KEY_XAI = "<Your XAI API key>"
-API_KEY_MS = "<Your Moonshot API key>"
-API_KEY_ALI = "<Your Aliyun API key>"
-API_KEY_GOOGLE = "<Your Google API key>"
-
-# Automation clicking fractional position: (x: horizontal from left 0 to right 1, y: vertical: from top 0 to bottom 1)
-# You can keep these default values and calibrate them later using the find_coords tool
-# POS_OPEN_FOLDER: Open the folder to load the machine, a button on the left part of the top column
-POS_OPEN_FOLDER = (0.202, 0.035)
-# POS_ENTER_NAME: The machine name entering frame
-POS_ENTER_NAME = (0.476, 0.215)
-# POS_OPEN_MACHINE: Open the machine button, on the right side of the machine name input box
-POS_OPEN_MACHINE = (0.638, 0.209)
-# POS_SET_GROUND: Set the ground button, on the middle of the top column
-POS_SET_GROUND = (0.403, 0.0185)
-# POS_LOG_WINDOW: The position of the Lua scripting log window, on the right side of the Lua panel
-POS_LOG_WINDOW = (0.185, 0.172)
-# POS_EMPTY_SPACE: An arbitrary position with no button or machine to click for resetting the UI
-POS_EMPTY_SPACE = (0.034, 0.726)
-# POS_START_SIMU: The start button on the upper left corner
-POS_START_SIMU = (0.021, 0.016)
-# POS_DELETE: The delete button for deleting the entire machine
-POS_DELETE = (0.707, 0.038)
-# POS_CONFIRM: The yes confirmation button after clicking the delete button
-POS_CONFIRM = (0.538, 0.586)
+```bash
+conda env create -f environment.yml
+conda activate BuildArena
 ```
 
-> **Note:** Replace all placeholder values (paths and API keys) with your actual configuration.
+Then continue with Step 3. In the activated environment, replace `uv run -m`
+with `python -m` in the commands below; there is no need to run `uv sync`.
+The environment uses Python 3.12 and the dependency requirements from
+`pyproject.toml`, installing `pywin32` only on Windows. Keep both dependency
+lists aligned when adding or changing packages.
+
+This installs the Python dependencies, not Besiege or its mod. Simulation
+remains tested only on Windows. Construction currently also imports the GUI
+automation modules, so a working desktop display is needed even when the
+game is not running.
+
+### Step 3: Configure API Keys and Paths
+
+The included `config.py` loads the root `.env` file automatically. Keep secrets
+in `.env`, which is ignored by Git. For Aliyun's `qwen-plus` baseline:
+
+```dotenv
+API_KEY_ALI=your-aliyun-api-key
+ALI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+SavedMachines=./datacache/SavedMachines
+```
+
+For a workspace-specific endpoint, use the URL and matching key from your
+Aliyun console. Existing `OPENAI_API_KEY` and `OPENAI_BASE_URL` entries can be
+kept by adding these aliases after them:
+
+```dotenv
+API_KEY_ALI=${OPENAI_API_KEY}
+ALI_BASE_URL=${OPENAI_BASE_URL}
+```
+
+Unconfigured providers stay disabled. Other providers use the `API_KEY_*`
+names in `config.py`; shell environment variables take precedence over `.env`.
+Select the model with `--model qwen-plus`.
+
+Create the writable output directory before construction:
+
+```bash
+mkdir -p datacache/SavedMachines
+```
+
+For simulation, set `SavedMachines` to the game's existing `SavedMachines`
+directory and calibrate the `POS_*` defaults in `config.py` using
+`python -m script.find_coords`.
 
 ---
 

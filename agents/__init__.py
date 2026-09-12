@@ -5,7 +5,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.models.anthropic import AnthropicChatCompletionClient
 from autogen_core.models import ModelFamily
 
-from config import API_KEY_OAI, API_KEY_DS, API_KEY_ANT, API_KEY_ARC, API_KEY_XAI, API_KEY_MS, API_KEY_ALI, API_KEY_GOOGLE
+from config import API_KEY_OAI, API_KEY_DS, API_KEY_ANT, API_KEY_ARC, API_KEY_XAI, API_KEY_MS, API_KEY_ALI, API_KEY_GOOGLE, ALI_BASE_URL
 import os
 
 # Initialize the model clients
@@ -24,12 +24,12 @@ oai_model_clients = {
     key: OpenAIChatCompletionClient(model=key, 
                                     api_key=API_KEY_OAI, 
                                     ) for key in OAI_MODELS
-    }
+    } if API_KEY_OAI else {}
 oai_reasoner_clients = {
     key: OpenAIChatCompletionClient(model=key, 
                                     api_key=API_KEY_OAI, 
                                     ) for key in OAI_REASONER_MODELS
-    }
+    } if API_KEY_OAI else {}
 
 if API_KEY_GOOGLE:
     GOOGLE_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
@@ -46,6 +46,8 @@ if API_KEY_GOOGLE:
                                     }
                                     ) for key in GOOGLE_MODELS
     }
+else:
+    google_model_clients = {}
 
 if API_KEY_XAI:
     XAI_TEXT_MODELS = ["grok-3-mini", "grok-3-fast", "grok-3"]
@@ -76,6 +78,8 @@ if API_KEY_XAI:
                                     }
                                     ) for key in XAI_MULTIMODAL_MODELS
     })
+else:
+    xai_model_clients = {}
     
     
 if API_KEY_DS:
@@ -98,12 +102,18 @@ else:
     ds_model_clients = {}
     
 if API_KEY_ALI:
-    ALI_MODELS = ["qwen3-max-preview", "qwen-plus", "qwen-flash"]
+    ALI_MODELS = ["qwen3-max-preview", "qwen-plus", "qwen-flash", "qwen3.8-max-0902"]
     ali_model_clients = {
         key: OpenAIChatCompletionClient(
             model=key, 
             api_key=API_KEY_ALI, 
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1", 
+            base_url=ALI_BASE_URL,
+            **({
+                "max_tokens": 16384,
+                "timeout": 180,
+                "max_retries": 1,
+                "extra_body": {"enable_thinking": True, "thinking_budget": 4096},
+            } if key == "qwen3.8-max-0902" else {}),
             model_info={
                 "vision": False,
                 "function_calling": True,

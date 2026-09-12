@@ -189,7 +189,7 @@ agents:
       - **IMPORTANT**: DO NOT make building related tools calls in your reply, your task is to give detailed step by step text instructions to the builder, the builder will execute the operations.
     model: null
 
-controller:
+  controller:
     name: controller
     system_message: |
       You are a control engineer. Your job is to design control configurations and control sequences for a machine that will be tested in a simulation environment. 
@@ -298,3 +298,4 @@ controller:
       - The control_config and control_sequence are the control configurations and sequences that guide the machine's actions.
       - The simulation is the simulated motion trajectory of the machine, describing the motion trajectory (x, y, z) of some blocks in the machine.
       - You should analyze the simulation and the control_config and control_sequence to revise the control_config and control_sequence to optimize the task.
+    model: null

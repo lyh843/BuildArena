@@ -1,0 +1,626 @@
+{
+  "facets": [
+    {
+      "id": "interfaces",
+      "nav": "命令行与工具",
+      "title": "本地接口总览",
+      "headline": "15 个可执行模块 · 21 个已注册智能体工具",
+      "sub": "不包含 HTTP、GraphQL、gRPC、WebSocket 或 Webhook 端点",
+      "hero": {
+        "v": "15",
+        "l": "命令行模块",
+        "s": "5 个主要入口 · 21 个智能体工具"
+      },
+      "columns": 2,
+      "sections": [
+        {
+          "kind": "tree",
+          "title": "可执行 Python 模块",
+          "sub": "展开分组可查看 argparse 参数",
+          "items": [
+            {
+              "label": "文档化工作流",
+              "badge": "主要",
+              "children": [
+                {
+                  "label": "python -m analyze.sampling_path_analysis",
+                  "badge": "主要",
+                  "children": [
+                    {
+                      "label": "db_path",
+                      "badge": "参数"
+                    },
+                    {
+                      "label": "--output",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--display",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m analyze.sim_common",
+                  "badge": "主要",
+                  "children": [
+                    {
+                      "label": "--csv_path",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--verbose",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m script.find_coords",
+                  "badge": "主要",
+                  "children": []
+                },
+                {
+                  "label": "python -m script.run_construction",
+                  "badge": "主要",
+                  "children": [
+                    {
+                      "label": "--model",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--category",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--level",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--n_sample",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--n_worker",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m script.run_simulation",
+                  "badge": "主要",
+                  "children": [
+                    {
+                      "label": "--db",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--todo",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--rfd",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--max-workers",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--resume",
+                      "badge": "选项"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "内部与调试入口",
+              "badge": "内部",
+              "children": [
+                {
+                  "label": "python -m analyze.sim_lift",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--machine_dir",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--sim_round",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--verbose",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m analyze.sim_support",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--machine_dir",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--sim_round",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--verbose",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m analyze.sim_transport",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--machine_dir",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--sim_round",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--verbose",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m scheduler.scheduler",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--db_path",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--timeout",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m scheduler.worker",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--id",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--db",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m simulation.operations",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--name",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--output_dir",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--duration",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--window_name",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m simulation.simulation_lift",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--machine_json",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--level",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m simulation.simulation_support",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--machine_json",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--level",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m simulation.simulation_transport",
+                  "badge": "内部",
+                  "children": [
+                    {
+                      "label": "--machine_json",
+                      "badge": "选项"
+                    },
+                    {
+                      "label": "--level",
+                      "badge": "选项"
+                    }
+                  ]
+                },
+                {
+                  "label": "python -m spatial.components",
+                  "badge": "内部",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "groups",
+          "title": "向 AutoGen 暴露的机器工具",
+          "sub": "从 spatial/build.py 的 @operation 装饰器中发现",
+          "groups": [
+            {
+              "title": "仅构建",
+              "accent": false,
+              "chips": [
+                "start"
+              ]
+            },
+            {
+              "title": "构建",
+              "accent": true,
+              "chips": [
+                "reset",
+                "connect_blocks",
+                "remove_block",
+                "attach_block_to",
+                "add_machine",
+                "remove_machine",
+                "shift_machine",
+                "rotate_machine"
+              ]
+            },
+            {
+              "title": "默认",
+              "accent": false,
+              "chips": [
+                "get_machine_summary",
+                "get_block_details"
+              ]
+            },
+            {
+              "title": "优化",
+              "accent": false,
+              "chips": [
+                "twist_block",
+                "shift_block",
+                "flip_spin"
+              ]
+            },
+            {
+              "title": "控制",
+              "accent": false,
+              "chips": [
+                "review_powered_blocks",
+                "review_control_config",
+                "review_control_sequence",
+                "change_control_key",
+                "add_control_sequence",
+                "remove_control_sequence",
+                "reset_control_sequence"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data",
+      "nav": "数据模型",
+      "title": "SQLite 任务图与产物存储",
+      "headline": "3 张 SQLModel 表 · 文件系统载荷",
+      "sub": "scheduler/task_db.py 与 datacache/<project>/",
+      "hero": {
+        "v": "3",
+        "l": "SQLite 数据表",
+        "s": "59 个声明字段"
+      },
+      "columns": 2,
+      "sections": [
+        {
+          "kind": "groups",
+          "title": "SQLModel 记录",
+          "groups": [
+            {
+              "title": "Config",
+              "accent": false,
+              "chips": [
+                "id",
+                "file_path",
+                "global_config_path",
+                "created_at",
+                "updated_at",
+                "db_path",
+                "bind_task",
+                "pass_rate",
+                "average_cost",
+                "performance",
+                "status",
+                "debug",
+                "duration",
+                "token_input",
+                "token_output"
+              ]
+            },
+            {
+              "title": "Task",
+              "accent": true,
+              "chips": [
+                "id",
+                "name",
+                "stage",
+                "status",
+                "content",
+                "parent_id",
+                "result_path",
+                "key_result",
+                "error_info",
+                "db_path",
+                "project_name",
+                "created_at",
+                "updated_at",
+                "retry_count",
+                "max_retries",
+                "bind_machine",
+                "bind_config",
+                "bind_plan",
+                "plan_content",
+                "sub_structure",
+                "raise_objection",
+                "n_offspring",
+                "n_objection",
+                "duration",
+                "turn",
+                "token_input",
+                "token_output"
+              ]
+            },
+            {
+              "title": "Machine",
+              "accent": false,
+              "chips": [
+                "id",
+                "name",
+                "description",
+                "status",
+                "sub_structure",
+                "blueprint",
+                "file_path",
+                "approved",
+                "created_at",
+                "updated_at",
+                "db_path",
+                "bind_task",
+                "bind_config",
+                "bind_plan",
+                "num_blocks",
+                "cost",
+                "registered"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "groups",
+          "title": "文件系统载荷",
+          "groups": [
+            {
+              "title": "智能体工作",
+              "chips": [
+                "规划 JSON",
+                "对话 Markdown",
+                "消息 JSON",
+                "异议记录"
+              ]
+            },
+            {
+              "title": "机器状态",
+              "accent": true,
+              "chips": [
+                "操作历史 JSON",
+                "完整历史 JSON",
+                "Besiege BSG",
+                "控制 JSON"
+              ]
+            },
+            {
+              "title": "评测结果",
+              "chips": [
+                "轨迹 CSV",
+                "指标 JSON",
+                "分析表 CSV",
+                "通过案例 BSG"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pipeline",
+      "nav": "流水线",
+      "title": "调度阶段与基准矩阵",
+      "headline": "7 个路由阶段 · 9 个基准任务",
+      "sub": "SQLite 轮询配合多进程工作单元；仿真阶段串行执行",
+      "hero": {
+        "v": "7",
+        "l": "任务阶段",
+        "s": "9 个类别/难度组合"
+      },
+      "columns": 2,
+      "sections": [
+        {
+          "kind": "loclist",
+          "title": "阶段处理函数",
+          "sub": "函数行数仅用于视觉参考，不代表复杂度",
+          "rows": [
+            {
+              "label": "规划",
+              "meta": "run_plan · 23 行",
+              "bar": 23
+            },
+            {
+              "label": "草拟",
+              "meta": "run_draft · 22 行",
+              "bar": 22
+            },
+            {
+              "label": "构建",
+              "meta": "run_build · 57 行",
+              "bar": 57
+            },
+            {
+              "label": "组装",
+              "meta": "run_assemble · 26 行",
+              "bar": 26
+            },
+            {
+              "label": "控制",
+              "meta": "run_control · 73 行",
+              "bar": 73
+            },
+            {
+              "label": "优化",
+              "meta": "run_refine · 32 行",
+              "bar": 32
+            },
+            {
+              "label": "仿真",
+              "meta": "run_simulation · 57 行",
+              "bar": 57
+            }
+          ]
+        },
+        {
+          "kind": "tree",
+          "title": "任务流转",
+          "items": [
+            {
+              "label": "构建",
+              "badge": "流水线",
+              "children": [
+                {
+                  "label": "规划",
+                  "badge": "LLM",
+                  "children": [
+                    {
+                      "label": "草拟",
+                      "badge": "LLM",
+                      "children": [
+                        {
+                          "label": "构建",
+                          "badge": "工具",
+                          "children": [
+                            {
+                              "label": "可旋转时进行优化",
+                              "badge": "工具"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "label": "存在多个子结构时进行组装",
+                  "badge": "汇合"
+                }
+              ]
+            },
+            {
+              "label": "运输反馈循环",
+              "badge": "流水线",
+              "children": [
+                {
+                  "label": "控制",
+                  "badge": "LLM",
+                  "children": [
+                    {
+                      "label": "仿真",
+                      "badge": "Besiege",
+                      "children": [
+                        {
+                          "label": "最多重复 3 次试验",
+                          "badge": "反馈"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "支撑 / 抬升",
+              "badge": "流水线",
+              "children": [
+                {
+                  "label": "仿真",
+                  "badge": "Besiege"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "groups",
+          "title": "基准任务",
+          "sub": "levels.yaml",
+          "groups": [
+            {
+              "title": "运输",
+              "chips": [
+                "简单",
+                "中等",
+                "困难"
+              ]
+            },
+            {
+              "title": "支撑",
+              "chips": [
+                "简单",
+                "中等",
+                "困难"
+              ]
+            },
+            {
+              "title": "抬升",
+              "chips": [
+                "简单",
+                "中等",
+                "困难"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

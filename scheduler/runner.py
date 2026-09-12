@@ -97,7 +97,7 @@ async def run_build(task: Task, global_config: dict) -> ProcessContext:
         return build_context
 
     if not spinful:
-        mark_machine_completed(machine_id=machine_id, approved=False, db_path=task.db_path)
+        mark_machine_unverified(machine_id=machine_id, approved=True, db_path=task.db_path)
 
     else:
         # Initialize a refining task from machine
@@ -124,8 +124,8 @@ async def run_refine(task: Task, global_config: dict) -> ProcessContext:
     blueprint = task.content.split("<blueprint>")[-1].split("<end blueprint>")[0]
     refine_context = await agents.build(task, refine=True)
     refine_result = refine_context.result
-    file_path = os.path.join(os.path.dirname(task.db_path), "machine", task.id, f"{task.id}.json")
     machine_id = task.bind_machine  # In format of {machine_id}_rfd
+    file_path = os.path.join(os.path.dirname(task.db_path), "machine", machine_id, f"{machine_id}.json")
     objection = refine_context.objection
        
     insert_machine(id=machine_id if not check_machine_exists(machine_id, task.db_path) else None, 

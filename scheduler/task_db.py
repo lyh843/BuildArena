@@ -52,9 +52,8 @@ def generate_task_id():
     return ''.join(random.choices(characters, k=8))
 
 def _normalize_path(p: str | Path, base: str | Path | None = None) -> Path:
-    # Use regex to split the path into parts and then join them back together
-    parts = re.split(r"[\\/]+", str(p))
-    path = Path(*parts)
+    # Normalize separators without discarding a POSIX root or Windows drive.
+    path = Path(str(p).replace("\\", "/"))
     if not path.is_absolute():
         base = Path(base) if base else Path.cwd()
         path = base / path

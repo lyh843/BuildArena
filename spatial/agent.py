@@ -64,6 +64,7 @@ class Objection:
         self.objection_raised = False
         
     def update_task_objection(self, key_failure: str, objection: str):
+        os.makedirs(self.working_dir, exist_ok=True)
         with open(self.objection_file_path, "w", encoding="utf-8") as f:
             f.write(f"From: {self.task_id}\nTo: {self.parent_id}\n")
             f.write(f"Key failure: {key_failure}\nObjection: {objection}")

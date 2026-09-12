@@ -33,6 +33,11 @@ class PlanManager:
                                                     approved=True,
                                                     registered=False,
                                                     db_path=self.db_path)
+            # Design approval permits assembly; physics is evaluated afterwards.
+            ready_machine_ids += fetch_machine_ids_by_plan(
+                plan_id=self.plan_id, sub_structure=sub_structure_id,
+                status="unverified", approved=True, registered=False,
+                db_path=self.db_path)
             pending_machine_ids = fetch_machine_ids_by_plan(plan_id=self.plan_id, 
                                                     sub_structure=sub_structure_id, 
                                                     status="pending",
@@ -113,10 +118,12 @@ class Scheduler:
         try:
             while True:
                 if self.timeout and time.time() - self.start_time > self.timeout:
-                    print(f"Timeout after {self.timeout} seconds, exiting...")
-                    break
+                    raise TimeoutError(f"Scheduler timed out after {self.timeout} seconds")
                 
                 # Clean up finished processes
+                for p in self.active_processes:
+                    if not p.is_alive():
+                        p.join()
                 self.active_processes = [p for p in self.active_processes if p.is_alive()]
                 active_tasks = [p.name for p in self.active_processes if not p.name.startswith("simulation")]
                 active_simulation = [p.name for p in self.active_processes if p.name.startswith("simulation")]
@@ -175,6 +182,8 @@ class Scheduler:
                 all_ended = (pending_tasks == 0 and 
                             len(self.active_processes) == 0 and 
                             pending_machines == 0)
+                if all_ended and not all_satisfied and break_on_complete:
+                    raise RuntimeError("Construction ended without eligible parts for assembly")
                 if all_ended and all_satisfied:
                     if break_on_complete:
                         print("All tasks completed.")
@@ -182,11 +191,24 @@ class Scheduler:
 
                 error_simulation = fetch_error_simulation_number(db_path=self.db_path)
                 if error_simulation > 2:
-                    print(f"Simulation malfunctioned, exiting...")
-                    break
+                    raise RuntimeError("Simulation malfunctioned")
         except KeyboardInterrupt:
             print("Keyboard interrupt, exiting...")
-            exit()
+            raise
+        finally:
+            for p in self.active_processes:
+                # Allow native GUI workers to stop physics before shutting down.
+                if p.is_alive() and p.name.startswith("simulation_"):
+                    p.join(timeout=120)
+                if p.is_alive():
+                    p.terminate()
+                    p.join(timeout=5)
+                    if p.is_alive():
+                        p.kill()
+                    mark_task_failed(p.name.rsplit("_", 1)[-1],
+                                     "Scheduler interrupted or timed out", self.db_path)
+                p.join()
+            self.active_processes.clear()
                 
 if __name__ == "__main__":
     # Resume from a db path

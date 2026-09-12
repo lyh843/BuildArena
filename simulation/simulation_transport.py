@@ -9,7 +9,7 @@ from typing import Literal
 
 from spatial.build import Assembly, Machine, Blocks, Block
 from spatial.components import Vector
-from simulation.operations import run_simulation_sequence
+from simulation.dispatch import run_simulation_sequence
 
 from config import SavedMachines
 

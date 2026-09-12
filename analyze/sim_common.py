@@ -741,6 +741,7 @@ def route_simulation_analysis(csv_path: str, verbose: bool = False) -> Dict[str,
             raise ValueError(f"Unknown category: {category}")
         
         copy_passed_bsg(result)
+        return result
             
     except Exception as e:
         raise ValueError(f"Failed to route simulation analysis: {str(e)}") from e

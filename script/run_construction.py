@@ -66,14 +66,17 @@ def main():
                       default=64,
                       required=False,
                       help='Number of samples to generate')
-    parser.add_argument('--n_worker', '-nw', 
+    parser.add_argument('--n_worker', '-nw',
                       type=int,
                       default=4,
                       required=False,
                       help='Number of workers to use')
+    parser.add_argument('--timeout', type=int, help='Overall timeout in seconds')
     
     # Parse arguments first to check for level-based mode
     args = parser.parse_args()
+    if args.n_sample < 1 or args.n_worker < 1 or (args.timeout is not None and args.timeout <= 0):
+        parser.error('Sample count, worker count, and timeout must be positive')
     
     # Load levels data for validation and help
     levels = load_levels_yaml()
@@ -103,7 +106,7 @@ def main():
     config['project'] = {}
     global_config = {}
 
-    project_name = f"{args.category}_{args.level}_{args.model.replace(' ', '-').replace('.', '-')}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+    project_name = f"{args.category}_{args.level}_{args.model.replace(' ', '-').replace('.', '-')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     config['project']['name'] = project_name
     config['project']['goal'] = task_content
     global_config['name'] = project_name
@@ -118,14 +121,13 @@ def main():
                 agent_config['model'] = args.model
     
     # Initialize project-specific database
-    project_name_for_db = f"{args.category}_{args.level}_{args.model.replace(' ', '-').replace('.', '-')}_{datetime.now().strftime('%Y%m%d_%H%M')}"
-    db_path = f"./datacache/{project_name_for_db}/task_database.db"
+    db_path = f"./datacache/{project_name}/task_database.db"
     init_db(db_path)
     
     _ = insert_config(config=config, global_config=global_config, bind_task="root", db_path=db_path)
 
     # Initialize scheduler with project settings
-    scheduler = Scheduler(config=global_config, db_path=db_path)
+    scheduler = Scheduler(config=global_config, db_path=db_path, timeout=args.timeout)
     scheduler.run(break_on_complete = True)
 
 if __name__ == "__main__":

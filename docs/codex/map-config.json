@@ -1,0 +1,20 @@
+{
+  "repo": "/home/lyh/BuildArena",
+  "title": "BuildArena",
+  "subtitle": "AI4SCIENCE · LLM 工程构建基准 · PYTHON 流水线图谱",
+  "out": "BuildArena-map.html",
+  "branch": "main",
+  "topKinds": ["app"],
+  "stripKinds": ["assets"],
+  "excludeRel": ["^docs/"],
+  "modules": [
+    {"id":"script","path":"script","kind":"app","deps":["agents","scheduler"]},
+    {"id":"scheduler","path":"scheduler","kind":"service","deps":["spatial","simulation"]},
+    {"id":"spatial","path":"spatial","kind":"core","deps":["agents","blocks"]},
+    {"id":"agents","path":"agents","kind":"integration","deps":[]},
+    {"id":"simulation","path":"simulation","kind":"service","deps":["spatial"]},
+    {"id":"analyze","path":"analyze","kind":"analysis","deps":["spatial","scheduler"]},
+    {"id":"blocks","path":"blocks","kind":"data","deps":[]},
+    {"id":"asset","path":"asset","kind":"assets","deps":[]}
+  ]
+}
