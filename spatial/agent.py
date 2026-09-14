@@ -1,5 +1,3 @@
-import asyncio
-
 from typing import List, Callable, Tuple, Dict
 from collections import namedtuple
 
@@ -21,7 +19,7 @@ from config import SavedMachines
 from spatial.build import Machine, Assembly
 from spatial.utils import xml_to_dict
 
-from agents import model_clients
+from agents import model_clients, planner_model_clients
 from scheduler.task_db import Task, get_config, add_task_objection, update_task_raise_objection
 from skill.library import SkillSession, record_event
 
@@ -31,9 +29,12 @@ machine = Machine(name = "default")
 AvailableBlocks = machine.blocks_storage()
 
 def init_agents(agent_config: dict, **kwargs):
+    client = model_clients[agent_config["model"]]
+    if agent_config["name"] == "planner":
+        client = planner_model_clients.get(agent_config["model"], client)
     agent = AssistantAgent(
         name=agent_config['name'], 
-        model_client=model_clients[agent_config['model']], 
+        model_client=client,
         system_message=agent_config['system_message'].replace("{available_blks}", AvailableBlocks),
         **kwargs,
     )
@@ -261,7 +262,6 @@ class MultiAgents():
     async def run_team_stream(self, team: BaseGroupChat, task: str | BaseChatMessage | List[BaseChatMessage]) -> TaskResult:
         stream = team.run_stream(task=task)
         async for message in stream:
-            await asyncio.sleep(5)  # Add delay to slow down the process
             if isinstance(message, TaskResult):
                 if self.verbose:
                     print("Task Finished")

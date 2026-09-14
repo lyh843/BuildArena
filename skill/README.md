@@ -21,14 +21,16 @@
 - `SkillSession.read_skill(skill_id)`：只能读取本次会话检索到的 ID，返回完整正文、版本、校验和与验证状态。不会执行正文中的 Python。
 - `configure_planner_skills(...)`：复制实验技能快照，将路径、版本及 SHA-256 写入任务配置；运行时拒绝内容漂移。
 
-首版采用 `tfidf_v1`：英文词项和中文双字词项的稀疏 TF-IDF 余弦相似度。这是**词法向量检索，不是语义 embedding**；同义词召回有限，尚未启用 `relations.json` 中的待审核边。每次规划最多检索 2 次、每次 Top-5、读取 2 次、成功知识响应合计 20,000 字符（以 `json.dumps(..., ensure_ascii=False)` 计数，不是 token 数，简短错误响应不计）。工具循环上限 4 轮，最后强制转为文本生成；格式错误最多再生成 1 次，读取预算不重置。调度器原有整任务重试会创建新会话并单独记录 attempt ID。
+首版采用 `tfidf_v1`：英文词项和中文双字词项的稀疏 TF-IDF 余弦相似度。这是**词法向量检索，不是语义 embedding**；同义词召回有限，尚未启用 `relations.json` 中的待审核边。每次规划最多检索 2 次、每次 Top-5、读取 2 次、成功知识响应合计 200,000 字符（以 `json.dumps(..., ensure_ascii=False)` 计数，不是 token 数，简短错误响应不计）。工具循环上限 4 轮，最后强制转为文本生成；格式错误最多再生成 1 次，读取预算不重置。调度器原有整任务重试会创建新会话并单独记录 attempt ID。
 
-仅 Planner 获得技能工具和技能附加指令；技能开关不改变下游角色的提示词与权限。Planner 将适用结论、技能版本、假设和待验证项写入各子结构原有 `design_requirements`，下游沿原有交接路径接收。关闭时不附加技能指令、不绑定技能工具，保留原始模型调用配置。两组共用格式重试修复、完整日志记录和下述构建拒绝证据校验。
+仅 Planner 获得技能工具和技能附加指令；技能开关不改变下游角色的提示词与权限。Planner 将适用结论、技能版本、假设和待验证项写入各子结构原有 `design_requirements`，下游沿原有交接路径接收。关闭时不附加技能指令、不绑定技能工具。两组共用相同的角色模型配置、格式重试修复、完整日志记录和下述构建拒绝证据校验。
+
+当前 `qwen3.8-max-0902` 的 Planner 请求超时为 600 秒，其他角色为 1200 秒；SDK 重试一次的设置不变。Draft 和 Build 消息流不再逐条固定等待 5 秒。新成对实验的 manifest 通过 `planner_model_settings` 单独记录 Planner 的实际参数。skill 成对实验入口默认总时限为 `--timeout 7200`（2 小时），覆盖 Plan、Draft 和 Build，不是单次请求时限；已冻结实验的 1800 秒上限保持原样。新知识会话默认使用 200,000 字符预算；已冻结实验配置中的 20,000 字符预算保持不变，不应通过续跑旧实验混合新旧协议，应创建新的 manifest。
 
 ```bash
 conda run -n BuildArena python -B -m script.run_construction \
   --model qwen3.8-max-0902 --category support --level soft \
-  --n_sample 1 --n_worker 1 --timeout 1800 \
+  --n_sample 1 --n_worker 1 --timeout 7200 \
   --skills --allow-draft-skills
 ```
 
@@ -55,7 +57,7 @@ conda run -n BuildArena python -B -m script.run_construction \
 ```bash
 conda run -n BuildArena python -B -m script.run_skill_comparison build \
   --manifest datacache/skill_comparison_example/manifest.json \
-  --level soft --pairs 1 --timeout 1800 --allow-draft-skills
+  --level soft --pairs 1 --timeout 7200 --allow-draft-skills
 conda run -n BuildArena python -B -m script.run_skill_comparison report \
   --manifest datacache/skill_comparison_example/manifest.json
 ```

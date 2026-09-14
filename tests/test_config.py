@@ -26,13 +26,28 @@ class ConfigTests(unittest.TestCase):
                     config.__dict__.update(runpy.run_path(str(ROOT / "config.py")))
                     load_dotenv.assert_called_once_with(ROOT / ".env")
                     with patch.dict(sys.modules, {"config": config}):
-                        clients = runpy.run_path(
+                        registry = runpy.run_path(
                             str(ROOT / "agents" / "__init__.py")
-                        )["model_clients"]
+                        )
+                        clients = registry["model_clients"]
+                        planners = registry["planner_model_clients"]
 
                 expected = {"qwen3-max-preview", "qwen-plus", "qwen-flash", "qwen3.8-max-0902"} if enabled else set()
                 self.assertEqual(set(clients), expected)
-                for client in clients.values():
+                self.assertEqual(set(planners), {"qwen3.8-max-0902"} if enabled else set())
+                if enabled:
+                    base = clients["qwen3.8-max-0902"]
+                    planner = planners["qwen3.8-max-0902"]
+                    self.assertIsNot(base, planner)
+                    self.assertEqual(base._client.timeout, 1200)
+                    self.assertEqual(planner._client.timeout, 600)
+                    self.assertEqual(planner._create_args,
+                                     {**base._create_args, "timeout": 600})
+                    self.assertEqual(planner._create_args["extra_body"], {
+                        "enable_thinking": True, "thinking_budget": 4096,
+                    })
+                    self.assertEqual(planner.dump_component().config["max_retries"], 1)
+                for client in [*clients.values(), *planners.values()]:
                     settings = client.dump_component().config
                     self.assertEqual(settings["api_key"].get_secret_value(), "test-key")
                     self.assertEqual(settings["base_url"], env["ALI_BASE_URL"])

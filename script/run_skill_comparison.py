@@ -21,9 +21,9 @@ def model_request_settings(client):
     ) if key in config}
 
 
-def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=1800,
+def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=7200,
                        skills_dir=DEFAULT_DIRECTORY, allow_drafts=False):
-    from agents import model_clients
+    from agents import model_clients, planner_model_clients
     from scheduler.task_db import init_db, insert_config, load_config
     from script.run_construction import find_level_task, load_levels_yaml
 
@@ -48,6 +48,8 @@ def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=1800
         "samples_per_group": pairs, "construction_timeout_seconds": timeout,
         "concurrent_constructions": 2, "workers_per_case": 1,
         "model_settings": model_request_settings(model_clients[model]),
+        "planner_model_settings": model_request_settings(
+            planner_model_clients.get(model, model_clients[model])),
         "packages": {name: version(name) for name in (
             "autogen-agentchat", "autogen-core", "autogen-ext", "openai",
         )},
@@ -150,7 +152,7 @@ def main():
     parser.add_argument("--model", default=MODEL)
     parser.add_argument("--level", choices=("soft", "medium", "hard"), default="soft")
     parser.add_argument("--pairs", type=int, default=1)
-    parser.add_argument("--timeout", type=int, default=1800)
+    parser.add_argument("--timeout", type=int, default=7200)
     parser.add_argument("--skills-dir", type=Path, default=DEFAULT_DIRECTORY)
     parser.add_argument("--allow-draft-skills", action="store_true")
     args = parser.parse_args()

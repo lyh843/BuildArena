@@ -278,14 +278,10 @@ class GeometryEvidenceTests(unittest.IsolatedAsyncioTestCase):
         original_config = copy.deepcopy(config)
         agents = MultiAgents(verbose=False)
 
-        async def run_without_delays(team, task):
-            return await team.run(task=task)
-
         with patch("spatial.agent.get_config", return_value=SimpleNamespace(config=config)), \
                 patch.dict("spatial.agent.model_clients", {"builder": builder, "guidance": guidance}), \
                 patch("spatial.agent.Machine", return_value=self.machine), \
-                patch.object(self.machine, "to_file"), \
-                patch.object(agents, "run_team_stream", side_effect=run_without_delays):
+                patch.object(self.machine, "to_file"):
             result = await agents.build(self.task.model_copy(update={
                 "content": "Continue the existing structure by adding block 16 at block 7's east face.",
             }))

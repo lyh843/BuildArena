@@ -68,6 +68,7 @@ def summarize(manifest):
 
 
 def build_batch(path):
+    from agents import PLANNER_REQUEST_TIMEOUT
     from scheduler.task_db import init_db, insert_config, load_config
     from script.run_construction import load_levels_yaml
 
@@ -81,6 +82,7 @@ def build_batch(path):
         "concurrent_constructions": 2,
         "model_settings": {"max_tokens": 16384, "timeout": 180, "max_retries": 1,
                            "extra_body": {"enable_thinking": True, "thinking_budget": 4096}},
+        "planner_request_timeout_seconds": PLANNER_REQUEST_TIMEOUT,
         "input_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                          for name in ("levels.yaml", "prompt.yaml")},
         "cases": [],

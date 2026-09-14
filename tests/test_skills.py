@@ -18,7 +18,7 @@ from scheduler.task_db import Task, load_config
 from scheduler.worker import save_context
 from script import run_skill_comparison as comparison
 from skill.library import DEFAULT_DIRECTORY, SkillLibrary, SkillSession, configure_planner_skills
-from spatial.agent import AvailableBlocks, MultiAgents
+from spatial.agent import AvailableBlocks, MultiAgents, init_agents
 
 
 PLAN = """<building_plan><overall_structure><description>Bridge</description></overall_structure>
@@ -39,6 +39,33 @@ def call(name, **arguments):
 
 
 class SkillTests(unittest.TestCase):
+    def test_expanded_budget_allows_both_reads_and_preserves_frozen_limits(self):
+        async def exercise(settings, log):
+            self.assertEqual(settings["budget"]["max_chars"], 200000)
+            for budget, blocked in ((settings["budget"], False),
+                                    ({**settings["budget"], "max_chars": 20000}, True)):
+                session = SkillSession({**settings, "budget": budget},
+                                       task_id=str(budget["max_chars"]), log_path=log)
+                await session.search_skills(
+                    "bridge spanning gap support load truss design wooden blocks braces")
+                await session.search_skills(
+                    "structural reinforcement brace winch connection strength beam")
+                self.assertIn("content", await session.read_skill("support_contact_fbd"))
+                result = await session.read_skill("support_midspan_bending")
+                if blocked:
+                    self.assertEqual(result["error"], "skill_context_budget_exhausted")
+                else:
+                    self.assertIn("content", result)
+                    self.assertGreater(session.chars, 20000)
+                    self.assertLessEqual(session.chars, 200000)
+                    self.assertEqual((session.searches, session.reads), (2, 2))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = {}
+            configure_planner_skills(config, category="support", level="soft",
+                                     snapshot_dir=root / "skills", allow_drafts=True)
+            asyncio.run(exercise(config["skills"], root / "events.jsonl"))
+
     def test_retrieval_filters_drafts_and_ranks_bilingual_queries(self):
         with self.assertRaisesRegex(ValueError, "allow_drafts"):
             SkillLibrary()
@@ -119,6 +146,16 @@ class SkillTests(unittest.TestCase):
 
 
 class PlannerSkillTests(unittest.IsolatedAsyncioTestCase):
+    async def test_planner_client_is_not_used_by_other_roles(self):
+        base, planner = ReplayChatCompletionClient([]), ReplayChatCompletionClient([])
+        with patch.dict("spatial.agent.model_clients", {"replay": base}), \
+                patch.dict("spatial.agent.planner_model_clients", {"replay": planner}):
+            for role in ("planner", "drafter", "builder", "guidance"):
+                agent = init_agents(dict(name=role, model="replay", system_message="test"))
+                self.assertIs(agent._model_client, planner if role == "planner" else base)
+        await base.close()
+        await planner.close()
+
     async def run_planner(self, directory, responses, *, enabled, iterations=4):
         config = load_config("prompt.yaml")
         config["agents"]["planner"]["model"] = "replay"
@@ -230,9 +267,18 @@ class ComparisonTests(unittest.TestCase):
                 shutil.copyfile(comparison.ROOT / name, root / name)
             path = root / "comparison/manifest.json"
             with patch.object(comparison, "ROOT", root), \
-                    patch.dict("agents.model_clients", {"replay": client}):
+                    patch.dict("agents.model_clients", {"replay": client}), \
+                    patch.dict("agents.planner_model_clients", {"replay": SimpleNamespace(
+                        dump_component=lambda: SimpleNamespace(config={
+                            "model": "replay", "timeout": 600, "api_key": "must-not-log",
+                        }),
+                    )}):
                 manifest = comparison.prepare_comparison(
-                    path, model="replay", pairs=1, timeout=60, allow_drafts=True)
+                    path, model="replay", pairs=1, allow_drafts=True)
+            self.assertEqual(manifest["construction_timeout_seconds"], 7200)
+            self.assertEqual(manifest["planner_model_settings"]["timeout"], 600)
+            self.assertNotIn("api_key", manifest["planner_model_settings"])
+            self.assertEqual(manifest["skills"]["budget"]["max_chars"], 200000)
             configs = []
             for case in manifest["cases"]:
                 with sqlite3.connect(case["db"]) as db:

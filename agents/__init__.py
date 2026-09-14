@@ -101,16 +101,19 @@ if API_KEY_DS:
 else:
     ds_model_clients = {}
     
+PLANNER_REQUEST_TIMEOUT = 600
+planner_model_clients = {}
+
 if API_KEY_ALI:
     ALI_MODELS = ["qwen3-max-preview", "qwen-plus", "qwen-flash", "qwen3.8-max-0902"]
-    ali_model_clients = {
-        key: OpenAIChatCompletionClient(
+    ali_model_configs = {
+        key: dict(
             model=key, 
             api_key=API_KEY_ALI, 
             base_url=ALI_BASE_URL,
             **({
                 "max_tokens": 16384,
-                "timeout": 180,
+                "timeout": 1200,
                 "max_retries": 1,
                 "extra_body": {"enable_thinking": True, "thinking_budget": 4096},
             } if key == "qwen3.8-max-0902" else {}),
@@ -123,6 +126,13 @@ if API_KEY_ALI:
             }
             ) for key in ALI_MODELS
         }
+    ali_model_clients = {
+        key: OpenAIChatCompletionClient(**settings)
+        for key, settings in ali_model_configs.items()
+    }
+    planner_model_clients["qwen3.8-max-0902"] = OpenAIChatCompletionClient(
+        **{**ali_model_configs["qwen3.8-max-0902"], "timeout": PLANNER_REQUEST_TIMEOUT}
+    )
 else:
     ali_model_clients = {}
     

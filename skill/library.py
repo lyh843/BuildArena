@@ -14,7 +14,7 @@ import yaml
 
 
 DEFAULT_DIRECTORY = Path(__file__).with_name("drafts")
-DEFAULT_BUDGET = {"top_k": 5, "max_searches": 2, "max_reads": 2, "max_chars": 20000}
+DEFAULT_BUDGET = {"top_k": 5, "max_searches": 2, "max_reads": 2, "max_chars": 200000}
 PLANNER_INSTRUCTIONS = """
 You have read-only engineering knowledge tools: search_skills and read_skill.
 Search for knowledge relevant to this task, then read only applicable candidates.
