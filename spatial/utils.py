@@ -3,6 +3,8 @@ import random
 import string
 import inspect
 import functools
+import copy
+import uuid
 from typing import Literal
 
 import numpy as np
@@ -141,7 +143,14 @@ def operation(placeholder = None, log = True, group: Literal["default", "build_o
                 else:
                     params[name] = value
 
+            if log:
+                # Even a failed edit invalidates previously inspected evidence.
+                self.geometry_revision = uuid.uuid4().hex
+                self.geometry_failure = None
             result = func(self, *args, **kwargs)
+            if log and self.geometry_failure and self.geometry_failure["operation"] == op_name:
+                self.geometry_failure["params"] = copy.deepcopy(params)
+                self.geometry_failure["state"] = self.geometry_snapshot()
             
             # Record final operation history
             do_record = self.record_op and log and op_name != 'reset'

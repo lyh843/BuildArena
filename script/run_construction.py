@@ -11,6 +11,8 @@ from datetime import datetime
 from scheduler.task_db import init_db, insert_config, load_config
 from scheduler.scheduler import Scheduler
 from agents import model_clients
+from pathlib import Path
+from skill.library import DEFAULT_DIRECTORY, configure_planner_skills
 
 def load_levels_yaml(levels_file="levels.yaml"):
     """Load and parse the levels.yaml file to extract available categories and difficulty levels."""
@@ -72,6 +74,10 @@ def main():
                       required=False,
                       help='Number of workers to use')
     parser.add_argument('--timeout', type=int, help='Overall timeout in seconds')
+    parser.add_argument('--skills', action='store_true', help='Enable planner-only skill retrieval')
+    parser.add_argument('--skills-dir', type=Path, default=DEFAULT_DIRECTORY)
+    parser.add_argument('--allow-draft-skills', action='store_true',
+                        help='Explicitly allow pending-review skills for exploratory runs')
     
     # Parse arguments first to check for level-based mode
     args = parser.parse_args()
@@ -107,6 +113,8 @@ def main():
     global_config = {}
 
     project_name = f"{args.category}_{args.level}_{args.model.replace(' ', '-').replace('.', '-')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    if args.skills:
+        project_name += "_skills"
     config['project']['name'] = project_name
     config['project']['goal'] = task_content
     global_config['name'] = project_name
@@ -122,6 +130,12 @@ def main():
     
     # Initialize project-specific database
     db_path = f"./datacache/{project_name}/task_database.db"
+    if args.skills:
+        configure_planner_skills(
+            config, category=args.category, level=args.level,
+            directory=args.skills_dir, allow_drafts=args.allow_draft_skills,
+            snapshot_dir=Path(db_path).parent / "configs" / "skills",
+        )
     init_db(db_path)
     
     _ = insert_config(config=config, global_config=global_config, bind_task="root", db_path=db_path)

@@ -30,7 +30,10 @@ def save_context(context: List[BaseChatMessage], task: Task, output_dir: str):
             try:
                 
                 f.write(f"# {source} ({model}) ({message.type}): \n\n{message.content}\n\n")
-                output_list.append({"source": source, "model": model, "type": message.type, "content": message.content})
+                serialized = message.model_dump(mode="json")
+                output_list.append({"source": source, "model": model, "type": message.type,
+                                    "content": serialized["content"],
+                                    "models_usage": serialized.get("models_usage")})
             except:
                 f.write(str(message))
                 output_list.append({"source": source, "model": model, "type": None, "content": str(message)})

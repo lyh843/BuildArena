@@ -105,17 +105,23 @@ def build_batch(path):
             "log": str(db.parent / "construction.log"),
         })
     save_manifest(path, manifest)
+    run_cases(path, manifest)
+
+
+def run_cases(path, manifest):
+    """Run frozen cases with the existing scheduler and preserve interrupted attempts."""
     active = []
     queued = list(manifest["cases"])
     try:
         while queued or active:
-            while queued and len(active) < 2:
+            while queued and len(active) < manifest["concurrent_constructions"]:
                 case = queued.pop(0)
                 stream = open(case["log"], "x", encoding="utf-8")
                 try:
                     process = subprocess.Popen([
                         sys.executable, "-B", "-u", "-m", "scheduler.scheduler",
-                        "--db_path", case["db"], "--timeout", "1800",
+                        "--db_path", case["db"], "--timeout",
+                        str(manifest["construction_timeout_seconds"]),
                     ], cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT)
                 except BaseException:
                     stream.close()
@@ -123,7 +129,7 @@ def build_batch(path):
                 case["construction_status"] = "running"
                 case["started_at"] = datetime.now().isoformat()
                 active.append((case, process, stream, time.monotonic()))
-                print(f"START {case['category']}/{case['level']}", flush=True)
+                print(f"START {case['category']}/{case['level']} {case.get('arm', '')}", flush=True)
                 save_manifest(path, manifest)
             for item in list(active):
                 case, process, stream, start = item
@@ -134,7 +140,7 @@ def build_batch(path):
                 case.update(construction_status="ended" if code == 0 else "error",
                             exit_code=code, elapsed_seconds=round(time.monotonic() - start, 2))
                 active.remove(item)
-                print(f"END {case['category']}/{case['level']} exit={code}", flush=True)
+                print(f"END {case['category']}/{case['level']} {case.get('arm', '')} exit={code}", flush=True)
                 save_manifest(path, manifest)
             time.sleep(2)
     finally:

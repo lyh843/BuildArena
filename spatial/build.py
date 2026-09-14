@@ -416,6 +416,9 @@ class Machine:
         # Record Operations
         self.blocks: Dict[str, Block] = {}
         self.operation_history = []
+        self.geometry_revision = uuid.uuid4().hex
+        self.geometry_failure = None
+        self._collision_pairs = []
         self.full_op_history_path = os.path.join(os.path.dirname(self.db_path), "machine", self.name, f"{self.name}_full.json")
         self.init_full_op_history()
         self.uid = 1
@@ -443,12 +446,47 @@ class Machine:
             
         self.local_index = None
             
-    def log_failed_operation(self, func_name: str, message: str):
+    def log_failed_operation(self, func_name: str, message: str, failure_code: str = None):
+        if failure_code:
+            self.geometry_failure = {
+                "operation": func_name, "code": failure_code, "message": message,
+                "collision_pairs": self._collision_pairs if failure_code == "collision" else [],
+            }
         self.operation_history_full.append({
             "op": "failed",
-            "params": {"func_name": func_name, "message": message}
+            "params": {"func_name": func_name, "message": message},
+            **({"failure_code": failure_code} if failure_code else {}),
         })
         self.save_full_op_history()
+
+    def geometry_snapshot(self):
+        """Read actual geometry, including occupied faces; do not use blueprint text."""
+        return {
+            "revision": self.geometry_revision,
+            "collision_enabled": self.do_collision,
+            "blocks": {
+                block_id: {
+                    "name": block.name,
+                    "root_position": block.geo.position.real.tolist(),
+                    "rotation": block.geo.rotation.rot_mat.tolist(),
+                    "scale": block.geo.scale.real.tolist(),
+                    "end_position": block.end_point.center.real.tolist() if block.end_point else None,
+                    "faces": {
+                        face_id: {
+                            "center": face.center.real.tolist(),
+                            "normal": face.normal.vec_abs.real.tolist(),
+                            "attachable": bool(face.sticky),
+                            "attached_to": (
+                                {"block_id": face.att_to.local_id, "face": face.att_to.color}
+                                if face.att_to else None
+                            ),
+                        }
+                        for face_id, face in block.faces.items()
+                    },
+                }
+                for block_id, block in self.blocks.items()
+            },
+        }
     
     @property
     def cost(self):
@@ -720,7 +758,7 @@ class Machine:
                 if np.linalg.norm(face_a.center.virtual - face_b.center.virtual) < 0.01:
                     error_message = "The two faces are too close to each other, please try again."
                     self.update_prompt(pre_msg=error_message)
-                    self.log_failed_operation("connect_blocks", error_message)
+                    self.log_failed_operation("connect_blocks", error_message, "faces_too_close")
                     return self.prompt
                 else:
                     # Get the specified new block
@@ -730,7 +768,7 @@ class Machine:
                     if collision_msg:
                         error_message = collision_msg
                         self.update_prompt(pre_msg=error_message)
-                        self.log_failed_operation("connect_blocks", error_message)
+                        self.log_failed_operation("connect_blocks", error_message, "collision")
                         return self.prompt
             elif face_a not in block_a.faces.keys():
                 if len(block_a.faces.keys()) == 0:
@@ -844,7 +882,7 @@ class Machine:
         if new_block not in AvailableBlocks and new_block not in WaiveableBlocks:
             error_message = f"Block {new_block} not available, please try again."
             self.update_prompt(pre_msg=error_message)
-            self.log_failed_operation("attach_block_to", error_message)
+            self.log_failed_operation("attach_block_to", error_message, "block_unavailable")
             return self.prompt
         else:
             if isinstance(base_block, int):
@@ -874,7 +912,7 @@ class Machine:
                     collision_msg = self._add_block(new_block)
                     if collision_msg:
                         error_message = collision_msg
-                        self.log_failed_operation("attach_block_to", error_message)
+                        self.log_failed_operation("attach_block_to", error_message, "collision")
                 elif face not in base_block.faces.keys():
                     error_message = f"Base block {base_block.local_id} {base_block.name} does not have face {face}, please try again."
                     self.update_prompt(pre_msg=error_message)
@@ -882,7 +920,7 @@ class Machine:
                 else:
                     error_message = f"Face {face} of base block {base_block.local_id} {base_block.name} is already occupied, please try again."
                     self.update_prompt(pre_msg=error_message)
-                    self.log_failed_operation("attach_block_to", error_message)
+                    self.log_failed_operation("attach_block_to", error_message, "face_occupied")
             else:
                 error_message = f"Base block {base_block} not found, please try again."
                 self.update_prompt(pre_msg=error_message)
@@ -930,7 +968,7 @@ class Machine:
             if collision_msg:
                 error_message = collision_msg
                 self.update_prompt(pre_msg=error_message)
-                self.log_failed_operation("twist_block", error_message)
+                self.log_failed_operation("twist_block", error_message, "collision")
                 block.twist(angle * -1)
                 self.refresh_colliders()
                 return self.prompt
@@ -963,7 +1001,7 @@ class Machine:
             if collision_msg:
                 error_message = collision_msg
                 self.update_prompt(pre_msg=error_message)
-                self.log_failed_operation("shift_block", error_message)
+                self.log_failed_operation("shift_block", error_message, "collision")
                 block.shift([shift * -1 for shift in shift_real])
                 self.refresh_colliders()
                 return self.prompt
@@ -1012,6 +1050,7 @@ class Machine:
     
     def collision_detect(self, target_block_id = False, assembly = False):
         is_collision, collision_pairs = self.in_collision()
+        self._collision_pairs = sorted(sorted(pair) for pair in collision_pairs)
         
         if is_collision:
             block = self.blocks.get(target_block_id) if target_block_id else self.blocks.get(str(self.uid))
@@ -1492,7 +1531,7 @@ class Assembly(Machine):
             # Failed to add new block
             self.remove_machine(self.index())
             error_message = collision_msg
-            self.log_failed_operation("add_machine", error_message)
+            self.log_failed_operation("add_machine", error_message, "collision")
             self.update_prompt(pre_msg=error_message)
         else:
             # Update counter if adding successes
@@ -1579,7 +1618,7 @@ class Assembly(Machine):
             if collision_msg:
                 error_message = collision_msg
                 self.update_prompt(pre_msg=error_message)
-                self.log_failed_operation("shift_machine", error_message)
+                self.log_failed_operation("shift_machine", error_message, "collision")
                 return self.prompt
             self.record_op = True
             self.update_prompt(pre_msg=f"Shifted sub-structure {machine_index} by {position}", 
@@ -1614,7 +1653,7 @@ class Assembly(Machine):
             if collision_msg:
                 error_message = collision_msg
                 self.update_prompt(pre_msg=error_message)
-                self.log_failed_operation("rotate_machine", error_message)
+                self.log_failed_operation("rotate_machine", error_message, "collision")
                 return self.prompt
             self.record_op = True
             self.update_prompt(pre_msg=f"Rotated sub-structure {machine_index} by {rotation}", 

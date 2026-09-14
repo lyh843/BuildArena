@@ -6,10 +6,13 @@ from collections import namedtuple
 import os
 import xml.etree.ElementTree as ET
 import json
+from pathlib import Path
+import time
+import uuid
 
 from autogen_core import CancellationToken
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.base import TaskResult
+from autogen_agentchat.base import TaskResult, Response
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import BaseGroupChat, RoundRobinGroupChat
 from autogen_agentchat.messages import TextMessage, BaseChatMessage
@@ -20,17 +23,19 @@ from spatial.utils import xml_to_dict
 
 from agents import model_clients
 from scheduler.task_db import Task, get_config, add_task_objection, update_task_raise_objection
+from skill.library import SkillSession, record_event
 
 ProcessContext = namedtuple('ProcessContext', ['context', 'result', 'token_input', 'token_output', 'turn', 'objection'])
 
 machine = Machine(name = "default")
 AvailableBlocks = machine.blocks_storage()
 
-def init_agents(agent_config: dict):
+def init_agents(agent_config: dict, **kwargs):
     agent = AssistantAgent(
         name=agent_config['name'], 
         model_client=model_clients[agent_config['model']], 
         system_message=agent_config['system_message'].replace("{available_blks}", AvailableBlocks),
+        **kwargs,
     )
     return agent
 
@@ -53,7 +58,23 @@ def get_token_output(messages: List[BaseChatMessage]):
     return sum([c.models_usage.completion_tokens for c in messages if c.models_usage is not None])
 
 class Objection:
-    def __init__(self, task: Task):
+    geometry_instructions = """
+Construction objections require verified tool evidence, not inferred geometry.
+You may call inspect_geometry and get_block_details yourself: these are read-only
+tools, not building operations. Face letters are local labels, not global directions.
+Before any build/refine objection, ask the builder to attempt the specific
+blueprint operation and correct tool arguments or placement mistakes. Then call
+inspect_geometry with relevant block IDs (an empty list inspects all blocks).
+Only a real, current engine failure can produce an evidence_id. Include that ID
+in raise_objection_build/raise_objection_refine. Any subsequent edit invalidates it.
+Match your objection to that exact failed operation and explain attempted repairs.
+A failed operation alone does not prove the entire blueprint impossible.
+If evidence is missing, invalid or stale, continue investigating and building;
+do not announce rejection or finish the conversation. Use the termination marker
+only for a verified complete construction or an accepted objection.
+"""
+
+    def __init__(self, task: Task, machine: Machine | None = None):
         self.task_id = task.id
         self.parent_id = task.parent_id if task.parent_id else "root"
         self.machine_id = task.bind_machine if task.bind_machine else task.id
@@ -62,12 +83,86 @@ class Objection:
         self.objection_file_path = os.path.join(self.working_dir, f"objection_{self.task_id}_to_{self.parent_id}.txt")
         self.db_path = task.db_path
         self.objection_raised = False
-        
-    def update_task_objection(self, key_failure: str, objection: str):
+        self.machine = machine
+        self._geometry_evidence = None
+        self.geometry_audit_path = Path(self.working_dir) / f"geometry_checks_{task.id}.jsonl"
+
+    async def inspect_geometry(self, block_ids: List[str]) -> dict:
+        """Inspect live positions, local faces and collisions before objecting.
+
+        Args:
+            block_ids: Relevant existing block IDs; [] returns all blocks.
+
+        Returns:
+            Current state and an evidence_id only for a real, current tool failure.
+            Invalid IDs/faces are correction requests, not geometry failure evidence.
+        """
+        self._geometry_evidence = None
+        if self.machine is None:
+            return {"evidence_id": None, "reason": "no_live_machine"}
+        state = self.machine.geometry_snapshot()
+        failure = self.machine.geometry_failure
+        current_failure = failure and failure.get("state") == state
+        selected = set(block_ids) if block_ids else set(state["blocks"])
+        # Always show the actual failed operation's targets as well as requested IDs.
+        if current_failure:
+            params = failure["params"]
+            selected.update(str(params[key]) for key in
+                            ("base_block", "block_a", "block_b", "block_id") if key in params)
+            if "machine_index" in params:
+                selected.update(key for key in state["blocks"]
+                                if key.startswith(params["machine_index"] + "_"))
+            selected.update(key for pair in failure["collision_pairs"] for key in pair)
+        collision, pairs = self.machine.in_collision()
+        result = {
+            "evidence_id": None, "revision": state["revision"],
+            "collision_enabled": state["collision_enabled"],
+            "blocks": {key: state["blocks"][key] for key in sorted(selected) if key in state["blocks"]},
+            "missing_block_ids": sorted(selected - state["blocks"].keys()),
+            "current_collision": bool(collision),
+            "current_collision_pairs": sorted(sorted(pair) for pair in pairs),
+            "failure": None,
+            "reason": "no_current_verified_failure",
+        }
+        if current_failure and state == self.machine.geometry_snapshot():
+            result["evidence_id"] = uuid.uuid4().hex
+            result["failure"] = {key: value for key, value in failure.items() if key != "state"}
+            result["reason"] = "verified_operation_failure"
+            self._geometry_evidence = {
+                **result, "task_id": self.task_id, "machine_name": self.machine.name,
+                "state": state,
+            }
+        record_event(self.geometry_audit_path, event="geometry_inspection",
+                     task_id=self.task_id, result=result)
+        return result
+
+    def update_task_objection(self, key_failure: str, objection: str, evidence_id: str = ""):
+        evidence = self._geometry_evidence
+        if self.stage == "machine":
+            reason = None
+            if self.objection_raised:
+                reason = "objection_already_raised"
+            elif not evidence_id or not evidence or evidence_id != evidence["evidence_id"]:
+                reason = "missing_or_unknown_evidence"
+            elif self.machine is None or evidence["state"] != self.machine.geometry_snapshot():
+                reason = "stale_geometry_evidence"
+            record_event(self.geometry_audit_path, event="objection_check",
+                         task_id=self.task_id, accepted=reason is None, reason=reason,
+                         evidence_id=evidence_id, key_failure=key_failure, objection=objection)
+            if reason:
+                # Never echo model text here: it can contain the team's stop marker.
+                return json.dumps({
+                    "accepted": False, "reason": reason,
+                    "next_step": "Continue building. Correct tool arguments and ask the builder "
+                                 "to attempt the specific operation, then call inspect_geometry.",
+                })
         os.makedirs(self.working_dir, exist_ok=True)
         with open(self.objection_file_path, "w", encoding="utf-8") as f:
             f.write(f"From: {self.task_id}\nTo: {self.parent_id}\n")
             f.write(f"Key failure: {key_failure}\nObjection: {objection}")
+            if self.stage == "machine":
+                f.write("\nVerified operation evidence (not proof of global impossibility):\n")
+                json.dump(evidence, f, ensure_ascii=False, indent=2)
         # Add one objection count to the parent task
         if self.parent_id:
             add_task_objection(task_id=self.parent_id, db_path=self.db_path)
@@ -94,7 +189,7 @@ class Objection:
         """
         return self.update_task_objection(key_failure, objection)
     
-    def raise_objection_build(self, key_failure: str, objection: str) -> str:
+    def raise_objection_build(self, key_failure: str, objection: str, evidence_id: str = "") -> str:
         """
         A tool to raise an objection to the provided blueprint when it is believed to be incorrect or impossible to be built during the current process.
         If you and the builder have tried many times to build the structure illustrated as the blueprint, but it violates the physical constrains of the building process (block not available, blocks overlap, etc.), the objection should be raised.
@@ -103,15 +198,16 @@ class Objection:
         
         Args:
             key_failure (str): The key failure of the blueprint
-            objection (str): The detailed objection to the blueprint 
+            objection (str): The detailed objection to the blueprint
+            evidence_id (str): Current verified failure ID returned by inspect_geometry; mandatory for acceptance.
             Explain what effort have you made to try to build the structure as instructed in the blueprint, and why the current blueprint is impossible to be built as expected.
             
         Returns:
             str: The command to shut down the current process.
         """
-        return self.update_task_objection(key_failure, objection)
+        return self.update_task_objection(key_failure, objection, evidence_id)
     
-    def raise_objection_refine(self, key_failure: str, objection: str) -> str:
+    def raise_objection_refine(self, key_failure: str, objection: str, evidence_id: str = "") -> str:
         """
         A tool to raise an objection to the provided machine structure when it is believed to be incorrect or impossible to be corrected and refined during the current process.
         If you and the builder have tried many times to correct the structure illustrated as the blueprint, but it has structural issues that cannot be adjust (missing blocks, misplaced blocks, rotatable blocks with wrong orientation, etc.), the objection should be raised.
@@ -121,13 +217,14 @@ class Objection:
         
         Args:
             key_failure (str): The key failure of the machine
-            objection (str): The detailed objection to the machine 
+            objection (str): The detailed objection to the machine
+            evidence_id (str): Current verified failure ID returned by inspect_geometry; mandatory for acceptance.
             Explain what effort have you made to try to correct the machine, and why the current machine is impossible to be corrected and refined as expected.
             
         Returns:
             str: The command to shut down the current process.
         """
-        return self.update_task_objection(key_failure, objection)
+        return self.update_task_objection(key_failure, objection, evidence_id)
 
 class MultiAgents():
     def __init__(self, verbose: bool = True):
@@ -181,31 +278,68 @@ class MultiAgents():
             print(">>> Plan Stage: \n")
             
         config = get_config(task.bind_config, task.db_path).config
-        planner = init_agents(config['agents']['planner'])
-            
-        task = task.content
-        
-        if not planner:
-            raise ValueError("Planner is not found in the config")
-        
+        settings = config.get("skills", {})
+        attempt_id = uuid.uuid4().hex
+        log_path = Path(task.db_path).parent / "plan" / f"planner_{task.id}.jsonl"
+        agent_config = dict(config["agents"]["planner"])
+        options = {}
+        if settings.get("enabled", False):
+            skills = SkillSession(settings, task_id=task.id, log_path=log_path,
+                                  attempt_id=attempt_id)
+            agent_config["system_message"] += "\n" + skills.instructions
+            options = {"tools": [skills.search_skills, skills.read_skill],
+                       "reflect_on_tool_use": True,
+                       "max_tool_iterations": settings.get("max_tool_iterations", 4)}
+        planner = init_agents(agent_config, **options)
+        full_context = [TextMessage(content=task.content, source="user")]
+        started = time.monotonic()
+        log = dict(task_id=task.id, attempt_id=attempt_id, role="planner")
+        record_event(log_path, **log, event="planner_start",
+                     skills_enabled=bool(settings.get("enabled", False)))
         await planner.on_reset(CancellationToken())
-        planner_response = await planner.on_messages([TextMessage(content=task, source="user")], CancellationToken())
-        plan_content = f"<building_plan>\n{planner_response.chat_message.content.split('<building_plan>')[1].split('</building_plan>')[0]}\n</building_plan>"
-
         try:
-            elem = ET.fromstring(plan_content)
-            result = xml_to_dict(elem)
-        except Exception as e:
-            # Try again with the same task
-            error_msg = f"The output is not well-formatted, please try again. Error parsing the content: {e}"
-            planner_response = await planner.on_messages([TextMessage(content=error_msg, source="user")], CancellationToken())
-            plan_content = f"<building_plan>\n{planner_response.chat_message.content.split('<building_plan>')[1].split('</building_plan>')[0]}\n</building_plan>"
-            elem = ET.fromstring(plan_content)
-            result = xml_to_dict(elem)
-            
+            for attempt in range(2):
+                final_text = ""
+                # Persist tool/model events as they arrive, including before a failed retry.
+                async for message in planner.on_messages_stream(
+                    [full_context[-1]], CancellationToken()
+                ):
+                    if isinstance(message, Response):
+                        message = message.chat_message
+                        final_text = message.content
+                    full_context.append(message)
+                    record_event(log_path, **log, event="message",
+                                 message=message.model_dump(mode="json"))
+                try:
+                    start = final_text.index("<building_plan>")
+                    end = final_text.index("</building_plan>", start) + len("</building_plan>")
+                    result = xml_to_dict(ET.fromstring(final_text[start:end]))
+                    if (not isinstance(result, dict)
+                            or not isinstance(result.get("sub_structures"), dict)
+                            or not result["sub_structures"]):
+                        raise ValueError("Missing nonempty sub_structures")
+                    break
+                except (ValueError, ET.ParseError) as error:
+                    if attempt:
+                        raise
+                    full_context.append(TextMessage(
+                        content=f"The output is not well-formatted, please try again. "
+                                f"Error parsing the content: {error}",
+                        source="user",
+                    ))
+            record_event(log_path, **log, event="planner_result", result=result,
+                         token_input=get_token_input(full_context),
+                         token_output=get_token_output(full_context),
+                         elapsed_seconds=time.monotonic() - started)
+        except BaseException as error:
+            record_event(log_path, **log, event="planner_error", error=type(error).__name__,
+                         token_input=get_token_input(full_context),
+                         token_output=get_token_output(full_context),
+                         elapsed_seconds=time.monotonic() - started)
+            raise
+
         if self.verbose:
             print(result)
-        full_context = [TextMessage(content=task, source="user"), *getattr(planner_response, "inner_messages", []), planner_response.chat_message]
         context = ProcessContext(context=full_context, 
                                  result=result, 
                                  token_input=get_token_input(full_context), 
@@ -260,9 +394,6 @@ class MultiAgents():
         return context
     
     async def build(self, task: Task, refine=False, assemble=False) -> ProcessContext:
-        # Initialize objection
-        objection = Objection(task)
-        
         # Initialize machine and bind tools to builder
         if not refine:
             machine_id = task.id
@@ -271,13 +402,16 @@ class MultiAgents():
             machine_id = task.parent_id
             machine = Machine(name=f"{machine_id}_rfd", save_dir=SavedMachines, db_path=task.db_path)
             machine = machine.from_file(file_path=os.path.join(os.path.dirname(task.db_path), "machine", machine_id, f"{machine_id}.json"))
+        objection = Objection(task, machine)
             
         save_dir = os.path.join(os.path.dirname(task.db_path), "machine", machine_id if not refine else f"{machine_id}_rfd")
         os.makedirs(save_dir, exist_ok=True)
         
         config = get_config(task.bind_config, task.db_path).config
         builder = init_agents(config['agents']['builder'])
-        guidance = init_agents(config['agents']['guidance'])
+        guidance_config = dict(config['agents']['guidance'])
+        guidance_config["system_message"] += "\n" + objection.geometry_instructions
+        guidance = init_agents(guidance_config)
             
         if self.verbose:
             stage_name = "Assemble" if assemble else "Build" if not refine else "Refine"
@@ -295,7 +429,10 @@ class MultiAgents():
             tools += machine.tools["build_only"]
             
         builder = self.equip_tools_for_agent(builder, tools)
-        guidance = self.equip_tools_for_agent(guidance, [objection.raise_objection_build if not refine else objection.raise_objection_refine])
+        guidance = self.equip_tools_for_agent(guidance, [
+            machine.get_block_details, objection.inspect_geometry,
+            objection.raise_objection_build if not refine else objection.raise_objection_refine,
+        ])
         
         await builder.on_reset(CancellationToken())
         await guidance.on_reset(CancellationToken())

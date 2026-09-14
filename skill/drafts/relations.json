@@ -1,0 +1,42 @@
+[
+  {
+    "source": "support_vertical_reactions",
+    "target": "support_contact_fbd",
+    "type": "requires",
+    "reason": "计算两岸反力前需要明确隔离边界、载荷和接触支承，不能引入无依据的地面固定端。",
+    "condition": "当前外部受力模型或支承合力位置的来源尚需核对。",
+    "review_status": "pending"
+  },
+  {
+    "source": "support_truss_model_gate",
+    "target": "support_contact_fbd",
+    "type": "requires",
+    "reason": "理想桁架分析先核对整体外载与实际约束，不能默认教材常见的三个支反力。",
+    "condition": "要将当前三角形或 Brace 方案作为简单桁架分析。",
+    "review_status": "pending"
+  },
+  {
+    "source": "support_midspan_bending",
+    "target": "support_vertical_reactions",
+    "type": "uses",
+    "reason": "截面弯矩分析先建立整体反力；中央点载与均布自重模型中的两岸反力可由相同平衡原理核对。",
+    "condition": "确认满足两支承模型，并将均布自重仅在整体反力分析中等效为跨中合力；截面分析仍保留分布载荷。",
+    "review_status": "pending"
+  },
+  {
+    "source": "support_contact_friction",
+    "target": "support_contact_fbd",
+    "type": "requires",
+    "reason": "摩擦判断需要同一接触的法向、切向需求及接触状态，几何存在不等于实际受压接触。",
+    "condition": "对某一桥端或货物接触进行静摩擦条件检查。",
+    "review_status": "pending"
+  },
+  {
+    "source": "support_contact_friction",
+    "target": "support_vertical_reactions",
+    "type": "uses",
+    "reason": "两岸反力可在模型成立时提供桥端法向载荷的条件估算，但不是实测接触力。",
+    "condition": "仅限同一准静态工况下的水平桥端接触，两个合力位置已知；不得将整桥反力当作货物接触力，也不得省略其他力矩。",
+    "review_status": "pending"
+  }
+]
