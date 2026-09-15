@@ -38,5 +38,37 @@
     "reason": "两岸反力可在模型成立时提供桥端法向载荷的条件估算，但不是实测接触力。",
     "condition": "仅限同一准静态工况下的水平桥端接触，两个合力位置已知；不得将整桥反力当作货物接触力，也不得省略其他力矩。",
     "review_status": "pending"
+  },
+  {
+    "source": "transport_drive_traction",
+    "target": "transport_axle_load_transfer",
+    "type": "uses",
+    "reason": "纵向加减速会改变驱动轴的法向载荷，不能始终沿用静态均分轮载。",
+    "condition": "满足同一两轴准静态模型且装载质心有依据；轴载比例只作为条件估算，不直接等同于单轮实测法向力。",
+    "review_status": "pending"
+  },
+  {
+    "source": "transport_differential_yaw",
+    "target": "transport_lateral_rollover",
+    "type": "uses",
+    "reason": "横摆驱动贡献非零不保证转向过程中不会抬轮，需要独立检查横向载荷需求。",
+    "condition": "已有同工况横向加速度需求，且满足居中刚性准静态模型；快速差动脉冲不能直接沿用该模型。",
+    "review_status": "pending"
+  },
+  {
+    "source": "transport_stopping_envelope",
+    "target": "transport_cargo_retention",
+    "type": "uses",
+    "reason": "满足车辆停车距离不代表自由货物在减速时仍能保持底面接触和相对静止。",
+    "condition": "Medium 或 Hard 的货物已落稳且仅底面受力；货物撞击挡边、滑移或明显转动后重新建模。",
+    "review_status": "pending"
+  },
+  {
+    "source": "transport_lateral_rollover",
+    "target": "transport_cargo_retention",
+    "type": "uses",
+    "reason": "整车未达到侧翻边界时，货物仍可能先滑移或倾覆，必须分别记录两种失效。",
+    "condition": "Medium 或 Hard 装载工况且货物满足水平矩形接触的独立前提，不用车辆轮地附着系数替代货物摩擦系数。",
+    "review_status": "pending"
   }
 ]

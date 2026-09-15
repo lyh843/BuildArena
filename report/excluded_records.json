@@ -1,0 +1,11 @@
+{
+  "excluded": [
+    {
+      "project": "support_soft_qwen3-8-max-0902_20260911_170706",
+      "machine_id": "u7t5a75l",
+      "excluded_on": "2026-09-15",
+      "reason": "User identified the September 11 Support Soft record as erroneous and requested deletion.",
+      "scope": "Exclude this sample from report statistics and comparisons. Derived analysis and simulation metrics JSON files deleted. Original construction and telemetry logs retained, not accepted as valid results."
+    }
+  ]
+}

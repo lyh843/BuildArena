@@ -4,12 +4,13 @@
 
 ## 当前阶段
 
-- 主题：Support 的桥梁跨越、接触支承、中央承载、结构稳定性与模块连接。
-- 状态：已从本地 `statics.pdf` 提炼五条 Support 技能草案；纯函数自测通过，人工审核与物理验证待完成。
+- 主题：Support 的桥梁与接触支承；Transport 的轮式驱动、转向、装载稳定与制动。
+- 状态：Statics 的五条 Support 草案已通过纯函数自测，另有一条 Brace 几何经验技能；新提炼六条 Transport 草案，仅做静态与只读检索检查。所有草案人工审核仍待完成，验证状态以各文件为准。
 - 来源清单：[book_candidates.md](book_candidates.md)。
 - 原始文件位置：`skill/books/`，该目录中的原书默认由 Git 忽略。
 - 提炼提示词：[EXTRACT_PROMPT.md](EXTRACT_PROMPT.md)。
 - 首批技能与来源、检查记录：[drafts/README.md](drafts/README.md)。
+- 汽车理论 Transport 技能、页码与迁移限制：[drafts/TRANSPORT_README.md](drafts/TRANSPORT_README.md)。
 - 已提供 Planner 专用的可关闭检索接口；实验启用草案需明确授权，书目审核勾选项未代替人工确认。
 
 ## 接口与开关
@@ -34,7 +35,7 @@ conda run -n BuildArena python -B -m script.run_construction \
   --skills --allow-draft-skills
 ```
 
-去掉 `--skills --allow-draft-skills` 即为无技能模式。未显式允许草案时，只加载 `human_review: approved` 的技能；当前五条仍为 `pending`。不要仅为运行而改写审核状态。
+去掉 `--skills --allow-draft-skills` 即为无技能模式。未显式允许草案时，只加载 `human_review: approved` 的技能；当前草案仍为 `pending`。不要仅为运行而改写审核状态。
 
 ## 成对实验
 

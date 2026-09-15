@@ -1,0 +1,68 @@
+{
+  "machine": "thikyf1k_sim",
+  "machine_sha256": "3905a6db87786b6dab14d15affbcc5209a915b1f91ceb6a20054cbc9d88d1adf",
+  "recorded_at": "2026-09-14T13:42:13.346911",
+  "requested_seconds": 17.0,
+  "time_range": [
+    0.32,
+    17.0
+  ],
+  "unique_rows": 833,
+  "tracked_ids": [
+    "ID_Ballast"
+  ],
+  "discarded_conflicting_keys": [
+    [
+      0.72,
+      "ID_Ballast",
+      3
+    ],
+    [
+      4.52,
+      "ID_Ballast",
+      3
+    ]
+  ],
+  "cleanup_warning": null,
+  "set_ground": false,
+  "physics_stopped": true,
+  "profile": {
+    "window_name": "Besiege",
+    "client_size": [
+      1920,
+      1200
+    ],
+    "saved_machines": "E:\\SteamLibrary\\steamapps\\common\\Besiege\\Besiege_Data\\SavedMachines",
+    "lua_file": "E:\\SteamLibrary\\steamapps\\workshop\\content\\346010\\2383785201\\LuaScripting\\LuaRoot\\main.lua",
+    "positions": {
+      "open_folder": [
+        396,
+        42
+      ],
+      "enter_name": [
+        948,
+        254
+      ],
+      "open_machine": [
+        1218,
+        254
+      ],
+      "set_ground": [
+        782,
+        18
+      ],
+      "log": [
+        460,
+        200
+      ],
+      "lua_indicator": [
+        40,
+        135
+      ],
+      "start_stop": [
+        40,
+        42
+      ]
+    }
+  }
+}

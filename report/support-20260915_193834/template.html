@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BuildArena · Support 框架改进与实验报告</title>
+<style>
+:root{--ink:#243239;--muted:#5f7078;--line:#dce3e6;--paper:#fff;--ground:#f3f6f7;--teal:#007e83;--red:#c64d5c;--amber:#a86309;--soft-teal:#eaf5f4;--soft-red:#fbf0f1;--soft-amber:#fff6e7}
+*{box-sizing:border-box;letter-spacing:0}html{scroll-behavior:smooth;scroll-padding-top:88px}
+body{margin:0;color:var(--ink);background:var(--paper);font:15px/1.7 "Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif}
+a{color:var(--teal);text-underline-offset:4px}a:hover{color:#00545a}a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
+.wrap{max-width:1424px;padding:0 44px;margin:auto}.topbar{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.nav{height:68px;display:flex;align-items:center;justify-content:space-between;gap:28px}.brand{font:700 18px Georgia,serif;white-space:nowrap}.brand span{color:var(--teal)}
+nav{display:flex;gap:24px;align-items:center}nav a{font-size:13px;color:var(--muted);text-decoration:none}.download{border-left:1px solid var(--line);padding-left:22px}
+.intro{padding-top:40px;padding-bottom:30px}.eyebrow{font:12px/1.5 Consolas,monospace;color:var(--muted)}
+h1{font:700 36px/1.4 "Noto Serif CJK SC","Songti SC","SimSun",serif;margin:8px 0 14px}
+h2{font-size:23px;line-height:1.4;margin:0 0 10px}h3{font-size:17px;line-height:1.5;margin:0 0 12px}p{margin:10px 0}
+.lead{font-size:17px;max-width:1050px}.muted{color:var(--muted)}.small{font-size:12px}.mono,td.num,.metric{font-family:Consolas,"SFMono-Regular",monospace;font-variant-numeric:tabular-nums}
+.facts{display:flex;gap:32px;padding-top:18px;color:var(--muted);font-size:13px}.facts strong{color:var(--ink)}
+section{padding:34px 0;border-top:1px solid var(--line)}.band{background:var(--ground)}
+.section-top{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}.section-top p{margin:0;max-width:940px}
+.notice{border-left:3px solid var(--amber);background:var(--soft-amber);padding:12px 16px;font-size:13px;margin:16px 0}
+.note{font-size:13px;color:var(--muted);margin:14px 0 0}.table-scroll{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}th{background:var(--ground);color:var(--muted);font-weight:600;font-size:12px;padding:12px 13px;border-bottom:1px solid var(--line)}
+td{vertical-align:top;padding:13px;border-bottom:1px solid var(--line)}td.num{text-align:right;white-space:nowrap}th.num{text-align:right;white-space:nowrap}
+tbody tr:hover{background:#f8fafb}.score{font-size:21px;font-weight:700}.yes{color:var(--teal)}.no{color:var(--red)}
+.arm{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.dot{width:8px;height:8px;display:inline-block;background:var(--red);border-radius:50%}.dot.skill{background:var(--teal)}
+.pill{display:inline-block;padding:2px 7px;font-size:11px;background:var(--ground);border:1px solid var(--line);border-radius:3px;white-space:nowrap}.pill.warn{color:var(--amber);background:var(--soft-amber);border-color:#ecd8b7}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px}.finding{border-top:3px solid var(--teal);padding:16px 0}.finding.coral{border-color:var(--red)}
+.finding p{font-size:14px}.finding strong.metric{font-size:25px;color:var(--teal)}
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:24px 0}
+.step{padding:16px 20px;border-right:1px solid var(--line)}.step:first-child{padding-left:0}.step:last-child{border:0}.step small{display:block;color:var(--muted);margin-top:6px;font-size:12px}
+.step .label{font:12px Consolas,monospace;color:var(--teal);display:block;margin-bottom:8px}
+.framework td:first-child{width:17%;font-weight:600}.framework td:nth-child(2){width:35%}.framework td:nth-child(3){width:31%}
+.scene{margin:0}.scene img{display:block;width:100%;aspect-ratio:1.6;object-fit:contain;background:#182629;border:1px solid var(--line)}
+.scene figcaption{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:12px 0;font-size:13px}.scene strong{display:block;font-size:15px}
+.scene .score{font-size:24px;line-height:1.2}.gallery{margin-top:26px}.chart{background:#fff;border-bottom:1px solid var(--line);padding:15px 0}.chart svg{width:100%;display:block;aspect-ratio:620/260}
+.legend{display:flex;gap:20px;align-items:center;color:var(--muted);font-size:12px}.rule{width:20px;height:0;border-top:2px dashed var(--amber);display:inline-block;vertical-align:middle;margin-right:5px}
+.toolbar{display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin:18px 0}.toolbar label{font-size:13px;color:var(--muted)}
+select{max-width:100%;min-width:290px;border:1px solid #b8c8cc;padding:9px 34px 9px 12px;border-radius:4px;background:white;color:var(--ink);font:inherit;font-size:13px}
+.keyline{display:flex;gap:35px;padding:15px 0;flex-wrap:wrap}.keyline small{display:block;color:var(--muted);font-size:12px}.keyline strong{font:700 21px/1.6 Consolas,monospace}
+.bar-row{display:grid;grid-template-columns:112px 1fr 84px;align-items:center;gap:10px;margin:10px 0;font-size:13px}.bar-track{height:14px;background:#e7ecee}.bar-fill{height:100%;background:var(--teal)}
+.bar-row:nth-child(even) .bar-fill{background:#6692a0}.cost-columns{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:24px}
+details{border-bottom:1px solid var(--line);padding:14px 0}summary{cursor:pointer;font-size:14px;font-weight:600}details p{font-size:13px}
+.auditlinks{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;font-size:12px}.task-table{margin:14px 0}
+.ledger td{font-size:12px}.ledger .id{font-size:13px;font-weight:700}.ledger th{white-space:nowrap}
+.conclusion{max-width:1060px}.conclusion li{margin:10px 0}.checklist{padding-left:22px}
+footer{padding:24px 0 38px;background:var(--ground);color:var(--muted);font-size:12px}
+code{font:12px/1.6 Consolas,monospace;background:#edf1f3;padding:2px 4px;overflow-wrap:anywhere}
+.source-list{columns:2;column-gap:40px;font-size:13px;padding-left:22px}.source-list li{margin:7px 0;break-inside:avoid}
+@media print{.topbar,.toolbar,.download{display:none}body{font-size:11px}.wrap{max-width:none;padding:0}section{padding:18px 0}h1{font-size:25px}h2{font-size:18px}.intro{padding-top:0}.grid2{gap:15px}tr,figure{break-inside:avoid}a{color:inherit}details{display:block}.notice{background:transparent}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="wrap nav"><div class="brand">Build<span>Arena</span> / Research</div><nav aria-label="报告导航"><a href="#overview">结果总览</a><a href="#framework">框架改进</a><a href="#physics">物理证据</a><a href="#cost">时间与 Token</a><a href="#ledger">全部实验</a><a href="#limits">结论与边界</a><a class="download" href="data.json" download>下载数据 JSON</a></nav></div></header>
+<main>
+<div class="wrap intro">
+<div class="eyebrow">EXPERIMENT RECORD · 2026.09.14 — 2026.09.15</div>
+<h1>Support 框架改进与实验报告</h1>
+<p class="lead">从长文本协商转向<strong>结构化蓝图、真实几何预演和分批执行</strong>。组件构建更可控，但跨 agent 的大文本传递仍在草拟与整机装配中形成明显成本。</p>
+<div class="facts"><span>模型 <strong class="mono">qwen3.8-max-0902</strong></span><span>有效纳入 <strong>11 次建模记录</strong></span><span>游戏验证 <strong>4 个成品各 1 次</strong></span><span>比较对象 <strong>Planner 有 / 无 skill 检索</strong></span></div>
+</div>
+<section id="overview"><div class="wrap">
+<div class="section-top"><div><h2>结果总览</h2><p class="muted">下面是已经实际运行过 Windows Besiege 的四个成品。Soft 为跨批次成品对照，Medium 为改造后的两次建模结果；均不是严格控制材料用量和生成预算的随机消融实验。</p></div></div>
+<div class="table-scroll"><table><thead><tr><th>实验 / 成品</th><th>Skill</th><th class="num">部件数</th><th class="num">物理得分</th><th class="num">高度达标时长</th><th class="num">首跌破阈值</th><th class="num">驱动用时 · 分钟</th><th class="num">已观察输入 Token</th><th class="num">已观察输出 Token</th></tr></thead><tbody id="overview-rows"></tbody></table></div>
+<div class="notice"><strong>数据更正：</strong>按用户确认，9 月 11 日 Support Soft 样本为错误数据，已删除对应两份评分汇总，整条样本不纳入本报告统计、图表或结论。原始日志仅作留档。<a href="../excluded_records.json">排除记录</a></div>
+<div class="grid2">
+<div class="finding"><h3>成品承载有所改善，不能据此断言普遍优越</h3><p>本次 Soft 成品为 <strong class="metric">0 → 361.81</strong>，Medium 成品为 <strong class="metric">0 → 561.14</strong>。有 skill 的部件数也分别增至 73 和 144；Soft 的生成设置不同，Medium 无 skill 曾中断后修正框架再续跑。</p></div>
+<div class="finding coral"><h3>通过几何检查、导出成功和物理通过是三件事</h3><p>Soft 的 73 块版偏离原蓝图；Medium 的 144 块版装配任务仍记为失败。物理通过只表示满足仓库最低承载时长规则，<strong>不是完整流水线通过，也不是撑满 17 秒</strong>。</p></div>
+</div>
+<p class="note">部件数与质量均不含测试器增加的 Ballast。输入 Token 统计重复发送的上下文；不是独立文本量，也不是账单金额。M2N 的驱动计时只覆盖续跑，首次中断成本在请求日志中另有记录。</p>
+</div></section>
+<section id="framework" class="band"><div class="wrap">
+<h2>目前改了哪些框架机制</h2><p class="muted">两组都共享框架改进。Skill 提供设计知识；代码提供执行约束与验收，不能把二者的效果混为一谈。</p>
+<div class="pipeline"><div class="step"><span class="label">PLAN</span><strong>Planner 检索与规划</strong><small>按需读取短技能、适用假设和待验证项</small></div><div class="step"><span class="label">DRAFT + PREFLIGHT</span><strong>结构化草拟与几何预演</strong><small>在临时 Machine 中用真实工具逐步回放</small></div><div class="step"><span class="label">BUILD</span><strong>每批 1—5 个规范操作</strong><small>稳定 ID、保留成功前缀、失败即停</small></div><div class="step"><span class="label">ASSEMBLE + PHYSICS</span><strong>整机装配与游戏评分</strong><small>装配仍是旧工具流；物理独立验证</small></div></div>
+<div class="table-scroll"><table class="framework"><thead><tr><th>原问题</th><th>已经实现</th><th>适用边界 / 尚未实现</th><th>代码证据</th></tr></thead><tbody>
+<tr><td>知识只存在于长篇教材</td><td>本地 skill 库、TF-IDF 检索、版本和哈希快照、检索预算；Planner 将依据与待验证项传入后续任务。</td><td>主动检索目前仍在 Planner。不是情节记忆；不是每个 agent 自动读取整库。探索性实验允许 pending-review 技能。</td><td><a href="../../skill/library.py">skill/library.py</a></td></tr>
+<tr><td>模型凭文字判断几何不可能</td><td>几何类异议必须先检查实际状态，并绑定当前失败证据 ID；提供位置、面法向、占用关系和失败操作。</td><td>只对几何判断形成约束，不证明游戏连接强度或物理稳定性。</td><td><a href="../../spatial/agent.py">inspect_geometry / 异议门槛</a><br><a href="../../spatial/build.py">geometry_snapshot</a></td></tr>
+<tr><td>达到最大轮数也被批准</td><td>显式完成检查；结构化组件还要求所有操作完成、最终几何与预演一致且无碰撞；不完整任务不自动从头循环重试。</td><td>最新 Medium 曾遇到 Markdown 结束标记误判，之后已修复解析；原实验失败状态保留。</td><td><a href="../../spatial/runtime.py">require_completion</a><br><a href="../../spatial/construction.py">Blueprint.complete</a></td></tr>
+<tr><td>每放一个块就切换 agent</td><td>Guidance 选下一批操作 ID；Builder 一次调用批量执行器，底层顺序执行真实工具。相同 ID 重试不重复添加积木。</td><td>只改结构化组件的 Draft / Build。整机装配、Refine、旧文字蓝图没有自动批量化。</td><td><a href="../../spatial/construction.py">BatchExecutor</a><br><a href="../../spatial/agent.py">build_recipe</a></td></tr>
+<tr><td>上下文不断累积</td><td>代码供应权威任务、接口、版本、进度与下一批操作；长讨论达到阈值才由 LLM 总结并替换旧上下文，保留最近 8 条消息及完整工具对。</td><td>Builder / Guidance 60,000 字符，Drafter / Reviewer 120,000 字符；不是 Token 硬上限。事实不做有损总结，压缩失败显式报错。</td><td><a href="../../spatial/runtime.py">WorkingContext</a><br><a href="../../prompt.yaml">默认预算</a></td></tr>
+<tr><td>改一点就重写整份蓝图</td><td>稳定操作 ID、版本化 patch、引用与参数验证；批准前真实预演，执行边界再次复查，Builder 不重新翻译蓝图。</td><td>预演通过不代表符合所有物理功能目标；整机接口仍需审核。</td><td><a href="../../spatial/construction.py">patch / validate / approve</a></td></tr>
+<tr><td>失败就终止或重新开始</td><td>失败批次保留已成功前缀，最多两轮局部修订和复查，已执行操作及装配接口锁定。</td><td>不能在状态漂移时伪造回滚；进程重启后的自动恢复尚未实现。最新两次组件构建未触发现场失败修复。</td><td><a href="../../spatial/agent.py">local_repair_start</a></td></tr>
+<tr><td>零长度 Brace 与无依据删件</td><td>短技能 + 共享代码检查 + 回归测试；check_connection 与实际连接共用最小端点间距 0.01。</td><td>“面已被基础块占用”不等于“Brace 一律不可连接”；要检查真实端点距离。几何合法不能替代承载测试。</td><td><a href="../../skill/drafts/geometry_brace_endpoints.md">Brace 技能</a><br><a href="../../tests/test_construction.py">回归测试</a></td></tr>
+<tr><td>看不清等待发生在哪里</td><td>请求 start / end / error、角色、耗时、输入字符、Token、压缩与批次执行时间都进入 JSONL。移除了固定的 5 秒事件等待。</td><td>没有 request_end 的在途调用不视作零成本；老实验没有同样完整的请求追踪。</td><td><a href="../../spatial/runtime.py">TracedClient</a></td></tr>
+</tbody></table></div>
+<p class="note">三批改造的历史离线验收记录为 63 项通过；这是当时的测试结果，本报告未重新跑全套测试。最新两个 Medium 的 manifest 实际使用整体 7200 秒、Planner 单次 600 秒、其他角色单次 1200 秒；“讨论过更长预算”不等于该次实验使用了更长预算。<a href="../../skill/CONSTRUCTION_ACCEPTANCE.md">完整验收记录</a></p>
+</div></section>
+<section id="physics"><div class="wrap">
+<h2>物理证据：同一评分规则，四个实际成品</h2>
+<p class="muted">得分来自逐步增重的 Ballast，而非模型判断。两岸场景中采集首 17 秒轨迹：记录高度 ≥ 4 的时长至少 2 秒，且初始记录高度 ≤ 20，才获得对应承载分数。</p>
+<div class="legend"><span class="arm"><i class="dot"></i>无 skill</span><span class="arm"><i class="dot skill"></i>有 skill</span><span><i class="rule"></i>评分高度阈值 4</span></div>
+<div class="grid2"><div class="chart"><h3>Support Soft · Ballast 高度</h3><div id="chart-soft"></div></div><div class="chart"><h3>Support Medium · Ballast 高度</h3><div id="chart-medium"></div></div></div>
+<p class="note">曲线从首次有效采样开始，不补画未观测的初始 0.32 / 0.36 秒。坐标纵轴为游戏高度；质量不是已验证的千克。最终增重脚本达到 1500，不表示桥承住了 1500。</p>
+<div class="grid2 gallery" id="gallery"></div>
+<div class="notice"><strong>实验完整性：</strong>Soft 测试的是用户接受的 73 块实际导出版本，未补回省略的 30 根 Brace。Medium 有 skill 的历史回放曾额外复活一根 Brace，预备文件已在物理前拒绝并对齐原始 144 块成品，再加 1 个测试 Ballast。没有用手工改桥替换结果；原始构建状态未重写。<a href="../../datacache/support_medium_physics_20260915_183619/RESULTS.md">Medium 物理审计</a></div>
+</div></section>
+<section id="cost" class="band"><div class="wrap">
+<h2>构建时间、轮数与 Token</h2>
+<p class="muted">驱动计时、数据库阶段计时、模型请求耗时不是同一个指标。失败阶段的数据库零 Token 不代表没有调用；有独立追踪时，优先用去重后的 request_end 观察值描述实际已记录用量。</p>
+<div class="toolbar"><label for="case-select">实验记录</label><select id="case-select"></select></div>
+<p id="case-note"></p><div id="cost-keyline" class="keyline"></div>
+<div class="table-scroll"><table><thead><tr><th>阶段</th><th class="num">任务数</th><th class="num">DB 时长 · 分</th><th class="num">DB 轮数</th><th class="num">已完成请求</th><th class="num">请求耗时合计 · 分</th><th class="num">DB 输入 / 输出</th><th class="num">请求日志输入 / 输出</th></tr></thead><tbody id="stage-rows"></tbody></table></div>
+<div class="cost-columns"><div><h3>阶段请求耗时</h3><div id="time-bars"></div></div><div><h3>阶段输入 Token</h3><div id="token-bars"></div></div></div>
+<p class="note">DB 轮数来自说话者切换计数，可能含初始消息，不能当作 API 请求数。任务重试或续跑可能覆盖旧阶段汇总；请求日志则可保留历史已完成响应。表中“+ 未落库”表示有任务缺少该字段，不把它补成零。旧记录没有追踪时显示“未记录”，不推算调用次数。</p>
+<details><summary>该实验的逐任务记录与角色用量</summary><div class="table-scroll task-table"><table><thead><tr><th>任务 ID / 阶段</th><th>原始状态</th><th class="num">DB 分钟</th><th class="num">创建至更新 · 分</th><th class="num">DB 轮数</th><th class="num">完成请求</th><th class="num">请求输入 / 输出</th></tr></thead><tbody id="task-rows"></tbody></table></div><div id="role-summary"></div></details>
+<h3 style="margin-top:30px">Medium 改造前后：组件 Build 阶段的观察值</h3>
+<div class="table-scroll"><table><thead><tr><th>记录</th><th>范围</th><th class="num">DB 分钟</th><th class="num">DB 轮数</th><th class="num">DB 输入 Token</th><th class="num">DB 输出 Token</th></tr></thead><tbody id="before-after"></tbody></table></div>
+<p class="note">这不是同一蓝图的受控速度测试：旧无 skill 成品为 156 块，新无 skill 为 18 块；旧有 skill 的 149 块只是未完成整桥的一个子结构。不能直接把表中差值当成框架加速率。历史离线回放的 149 次单操作 → 30 次批量调用只证明执行等价，不是实测 LLM 加速。</p>
+<div class="grid2" style="margin-top:24px"><div class="finding"><h3>现在的主要瓶颈在哪里</h3><p id="bottleneck"></p></div><div class="finding coral"><h3>压缩机制确实执行过，但还未覆盖整条流水线</h3><p id="compression"></p></div></div>
+</div></section>
+<section id="ledger"><div class="wrap">
+<div class="section-top"><div><h2>完整实验台账</h2><p class="muted">保留 9 月 14—15 日全部相关成功、异议、超时、中断与单臂验证。S1 / S2 / M1 为各自同批对照；S3—S5 为连续调整设置的单臂样本，不能替换原对照中的失败。</p></div></div>
+<div class="toolbar"><label for="level-filter">难度</label><select id="level-filter"><option value="all">Soft + Medium</option><option value="soft">Support Soft</option><option value="medium">Support Medium</option></select></div>
+<div class="table-scroll"><table class="ledger"><thead><tr><th>记录 / 开始时间</th><th>流程 / Skill</th><th>构建结果</th><th class="num">成品 / 候选块</th><th class="num">驱动分钟</th><th class="num">已观察输入 Token</th><th class="num">已观察输出 Token</th><th class="num">物理分数</th></tr></thead><tbody id="ledger-rows"></tbody></table></div>
+<div id="record-details"></div>
+</div></section>
+<section id="limits" class="band"><div class="wrap">
+<h2>结论、限制与下一步</h2>
+<div class="conclusion">
+<ol class="checklist">
+<li><strong>几何错误主要前移，而不是消失。</strong>新版有 skill Medium 的蓝图预演仍有 2 次重叠、2 次面占用，之后 26 个正式组件批次全部成功；无 skill 为 1 次面占用，5 个正式批次全部成功。预演同时还有面标签错误，完整失败列表保存在数据 JSON 中。</li>
+<li><strong>已有承载成功案例，但不能声称 skill 的普遍因果收益。</strong>各成品只有一次物理测试，材料用量、生成配置和建模历史不同。Soft 两臂不是同一批完整成功样本；Medium 无 skill 有人工中断与框架修正续跑。</li>
+<li><strong>下一步优先缩短草拟与整机装配上下文。</strong>将组件接口、相对变换和连接清单结构化交接，减少整份块摘要重复发送；保留权威状态和可追溯失败证据，不以有损摘要代替几何事实。</li>
+<li><strong>在同一冻结蓝图上单独验证框架收益。</strong>使用一致模型、提示配置与任务预算，对比单步 / 批量执行；记录请求数、输入输出 Token、等待、预演、压缩与修复时间，再运行多次游戏仿真。不要用不同规模设计得出固定加速倍数。</li>
+<li><strong>Skill 内容改进遵循“短说明 + 代码检查 + 回归用例”。</strong>已知非法端点由共享工具阻止；经验解释适用条件。强度、摩擦和连接刚度仍需游戏数据校准，不能只凭平衡公式保证安全。</li>
+</ol>
+</div>
+<h3 style="margin-top:26px">统计口径</h3>
+<p class="small">① 所有 Token 为已记录用量或下界，不是费用账单，不推断供应商未返回的重试 / 在途用量。② request_end 与 DB 汇总是重叠口径，绝不直接相加。③ 驱动 elapsed_seconds 为原单调时钟记录；阶段 DB duration 为原墙钟记录，二者可能明显不同。④ M2N 的驱动时间只含续跑；“创建至更新”包含等待和干预，并非纯运行时间。⑤ 物理分数 null 表示没有测量，0 表示已测量但未达到规则；不能合并。⑥ 通过标记为既有分析器结果，未改变高度、时长或荷载定义。⑦ 报告未调用模型重新建桥，也未重新运行游戏。</p>
+<h3 style="margin-top:26px">来源索引</h3>
+<ul class="source-list">
+<li><a href="../../datacache/skill_comparison_20260914/skill_comparison_report.json">Soft 第一轮对照</a></li>
+<li><a href="../../datacache/skill_physics_comparison_20260914/RESULTS.md">Soft 第二轮对照与无 skill 物理记录</a></li>
+<li><a href="../../datacache/skill_validation_20260914_142655_740280/RESULTS.md">Soft 600 秒 Planner 验证</a></li>
+<li><a href="../../datacache/skill_validation_20260914_152742/RESULTS.md">Soft 移除等待后的中断记录</a></li>
+<li><a href="../../datacache/skill_validation_20260914_160353/RESULTS.md">Soft 73 块成品与蓝图偏差</a></li>
+<li><a href="../../datacache/skill_validation_20260914_160353/PHYSICS_RESULTS.md">Soft 有 skill 后续物理验证</a></li>
+<li><a href="../../datacache/support_construction_comparison_20260914_182948/medium/skill_comparison_report.json">Medium 改造前构建对照</a></li>
+<li><a href="../../datacache/support_medium_no_skills_20260915_112355/resume_manifest.json">Medium 无 skill 续跑说明</a></li>
+<li><a href="../../datacache/support_medium_with_skills_20260915_130148/manifest.json">Medium 有 skill 实验配置</a></li>
+<li><a href="../../datacache/support_medium_physics_20260915_183619/manifest.json">Medium 双臂物理审计与文件哈希</a></li>
+<li><a href="../../skill/CONSTRUCTION_ACCEPTANCE.md">三批框架改造与离线验收</a></li>
+<li><a href="data.json">本报告结构化数据与来源 SHA-256</a></li>
+</ul>
+</div></section>
+</main>
+<footer><div class="wrap">BuildArena · Support Soft / Medium · 截止 2026 年 9 月 15 日。<span id="generated"></span><br>原始日志保留；错误样本显式排除；没有测量的成绩不填零。报告数据由 build_report.py 从指定本地来源重新生成。</div></footer>
+<script id="report-data" type="application/json">__REPORT_DATA__</script>
+<script>
+"use strict";
+const data=JSON.parse(document.getElementById("report-data").textContent);
+const all=data.cases, byId=Object.fromEntries(all.map(c=>[c.id,c]));
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const n=v=>v==null?"未记录":Number(v).toLocaleString("en-US");
+const dec=v=>v==null?"未记录":Number(v).toFixed(2);
+const mins=v=>v==null?"未记录":dec(v/60);
+const stageName={plan:"Planner",draft:"Draft + Review",build:"组件 Build",assemble:"整机 Assemble"};
+const arm=c=>`<span class="arm"><i class="dot ${c.arm==="with_skills"?"skill":""}"></i>${c.arm==="with_skills"?"有 skill":"无 skill"}</span>`;
+const pair=(a,b)=>`${n(a)} / ${n(b)}`;
+const dbTime=s=>`${dec(s.db_minutes)}${s.db_missing_durations?' <span class="pill warn">+ 未落库</span>':""}`;
+const status=c=>c.id==="M2K"?"已导出 / 装配任务失败":c.id==="S5K"?"审核完成 / 蓝图偏差":c.construction_complete?"构建完成":c.id==="S1K"?"异议 / 未批准":c.id==="S2K"?"Planner 超时":"中断 / 无完整成品";
+const physics=all.filter(c=>c.physics);
+$("overview-rows").innerHTML=physics.map(c=>`<tr><td><strong>${c.level==="soft"?"Soft":"Medium"} · ${c.id}</strong><br><span class="muted mono">${esc(c.machine_id)}</span></td><td>${arm(c)}</td><td class="num">${n(c.blocks)}</td><td class="num"><span class="score ${c.physics.pass?"yes":"no"}">${dec(c.physics.score)}</span><br><span class="small">${c.physics.pass?"物理通过":"物理未通过"}</span></td><td class="num">${dec(c.physics.hold)} s</td><td class="num">${dec(c.physics.crossing)} s</td><td class="num">${mins(c.driver_seconds)}${c.id==="M2N"?" *":""}</td><td class="num">${n(c.observed_input)}</td><td class="num">${n(c.observed_output)}</td></tr>`).join("");
+$("gallery").innerHTML=physics.map(c=>`<figure class="scene"><a href="${c.physics.screenshot}"><img src="${c.physics.screenshot}" alt="${c.level} ${c.id}：${c.blocks} 个部件的 Besiege 实际加载画面" width="1920" height="1200" loading="lazy"></a><figcaption><div><strong>${c.level==="soft"?"Soft":"Medium"} · ${arm(c)} · ${c.id}</strong><span class="muted">${c.blocks} 个部件 · 自重 ${dec(c.physics.mass)} · 轨迹 ${dec(c.physics.time_range[0])}—17.00 s</span><div class="auditlinks"><a href="${c.physics.csv}">轨迹 CSV</a><a href="${c.physics.runtime}">运行校验</a><a href="../../${esc(c.physics.metrics_source)}">评分 JSON</a></div></div><div class="score ${c.physics.pass?"yes":"no"}">${dec(c.physics.score)}</div></figcaption></figure>`).join("");
+function chart(level){
+ const samples=physics.filter(c=>c.level===level),w=620,h=260,left=48,right=18,top=18,bottom=40,ymax=12;
+ const x=t=>left+t/17*(w-left-right),y=z=>h-bottom-z/ymax*(h-top-bottom);
+ let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${level} 两个成品的 Ballast 高度轨迹"><rect width="${w}" height="${h}" fill="white"/>`;
+ for(const v of [0,4,8,12])s+=`<line x1="${left}" x2="${w-right}" y1="${y(v)}" y2="${y(v)}" stroke="${v===4?"#a86309":"#dce3e6"}" stroke-dasharray="${v===4?"5 4":"0"}"/><text x="${left-10}" y="${y(v)+4}" text-anchor="end" fill="#5f7078" font-size="12">${v}</text>`;
+ for(const v of [0,4,8,12,17])s+=`<text x="${x(v)}" y="${h-17}" text-anchor="middle" fill="#5f7078" font-size="12">${v}s</text>`;
+ for(const c of samples){const color=c.arm==="with_skills"?"#007e83":"#c64d5c";s+=`<polyline fill="none" stroke="${color}" stroke-width="2.5" points="${c.physics.positions.map(p=>`${x(p[0]).toFixed(2)},${y(p[1]).toFixed(2)}`).join(" ")}"/>`;const t=c.physics.crossing;if(t!==null)s+=`<circle cx="${x(t)}" cy="${y(4)}" r="4" fill="${color}"/><text x="${x(t)+7}" y="${y(4)-9}" fill="${color}" font-size="12">${dec(t)}s</text>`;}
+ s+="</svg>";$("chart-"+level).innerHTML=s;
+}
+chart("soft");chart("medium");
+$("case-select").innerHTML=all.map(c=>`<option value="${c.id}" ${c.id==="M2K"?"selected":""}>${c.id} · ${c.level} · ${c.arm==="with_skills"?"有 skill":"无 skill"} · ${esc(c.label)}</option>`).join("");
+function bars(c,key){
+ const traced=c.stages.some(s=>s.trace), vals=c.stages.map(s=>({label:stageName[s.stage],value:traced?(s.trace?s.trace[key]:0):(key==="seconds"?s.db_minutes*60:s.db_input)}));
+ const max=Math.max(...vals.map(v=>v.value),1);
+ return vals.map(v=>`<div class="bar-row"><span>${v.label}</span><div class="bar-track"><div class="bar-fill" style="width:${(100*v.value/max).toFixed(2)}%"></div></div><span class="mono">${key==="seconds"?mins(v.value)+" 分":(v.value/1000).toFixed(1)+" K"}</span></div>`).join("")+`<p class="small muted">${traced?"request_end / error 记录口径":"无完整请求追踪，以上仅使用 DB 已落库值；失败阶段可能缺失。"}</p>`;
+}
+function cost(){
+ const c=byId[$("case-select").value];
+ $("case-note").textContent=c.note;
+ $("cost-keyline").innerHTML=`<div><small>驱动分钟${c.id==="M2N"?" · 仅续跑":""}</small><strong>${mins(c.driver_seconds)}</strong></div><div><small>开始至最后任务更新 · 墙钟分钟</small><strong>${mins(c.wall_seconds)}</strong></div><div><small>已观察输入 / 输出 Token</small><strong>${pair(c.observed_input,c.observed_output)}</strong></div><div><small>有记录的完成请求 / 未配对开始</small><strong>${n(c.trace_calls)} / ${n(c.unmatched_requests)}</strong></div>`;
+ $("stage-rows").innerHTML=c.stages.map(s=>`<tr><td><strong>${stageName[s.stage]}</strong></td><td class="num">${s.tasks}</td><td class="num">${dbTime(s)}</td><td class="num">${s.db_turns}${s.db_missing_durations?" *":""}</td><td class="num">${n(s.trace?.calls)}</td><td class="num">${s.trace?mins(s.trace.seconds):"未记录"}</td><td class="num">${pair(s.db_input,s.db_output)}${s.db_missing_durations?" *":""}</td><td class="num">${s.trace?pair(s.trace.input,s.trace.output):"未记录"}</td></tr>`).join("");
+ $("time-bars").innerHTML=bars(c,"seconds");$("token-bars").innerHTML=bars(c,"input");
+ $("task-rows").innerHTML=c.tasks.map(t=>`<tr><td><span class="mono">${t.id}</span><br>${stageName[t.stage]}</td><td>${esc(t.status)}${t.retry_count?`<br><small>失败计数 ${t.retry_count}</small>`:""}</td><td class="num">${t.duration==null?"未落库":dec(t.duration)}</td><td class="num">${mins(t.wall_seconds)}</td><td class="num">${t.turn}${t.duration==null?" *":""}</td><td class="num">${n(t.trace?.calls)}</td><td class="num">${t.trace?pair(t.trace.input,t.trace.output):"未记录"}</td></tr>`).join("");
+ const roles={};for(const t of c.tasks)for(const [name,r] of Object.entries(t.trace?.roles||{})){roles[name]??={calls:0,seconds:0,input:0,output:0};for(const k of Object.keys(roles[name]))roles[name][k]+=r[k];}
+ $("role-summary").innerHTML=Object.keys(roles).length?`<table><thead><tr><th>角色</th><th class="num">完成请求</th><th class="num">请求分钟</th><th class="num">输入 / 输出 Token</th></tr></thead><tbody>${Object.entries(roles).map(([role,r])=>`<tr><td class="mono">${esc(role)}</td><td class="num">${r.calls}</td><td class="num">${mins(r.seconds)}</td><td class="num">${pair(r.input,r.output)}</td></tr>`).join("")}</tbody></table>`:"<p>该实验没有完整的逐角色请求耗时日志。</p>";
+}
+$("case-select").addEventListener("change",cost);cost();
+$("before-after").innerHTML=["M1N","M2N","M1K","M2K"].map(id=>{const c=byId[id],s=c.stages.find(s=>s.stage==="build");return `<tr><td><strong>${id} · ${id.startsWith("M1")?"改造前":"改造后"}</strong><br>${arm(c)}</td><td>${id==="M1K"?"仅一子结构落库，另一子结构失败":"三个组件 Build 汇总"}</td><td class="num">${dbTime(s)}</td><td class="num">${s.db_turns}${s.db_missing_durations?" *":""}</td><td class="num">${n(s.db_input)}${s.db_missing_durations?" *":""}</td><td class="num">${n(s.db_output)}${s.db_missing_durations?" *":""}</td></tr>`;}).join("");
+const mk=byId.M2K,as=mk.stages.find(s=>s.stage==="assemble"),dr=mk.stages.find(s=>s.stage==="draft");
+$("bottleneck").innerHTML=`M2K 的整机装配有 <strong>${as.trace.calls} 次</strong>完成响应，输入 <strong>${n(as.trace.input)}</strong> Token，占该次已观察输入的 <strong>${dec(100*as.trace.input/mk.observed_input)}%</strong>；请求耗时合计 ${mins(as.trace.seconds)} 分钟。Draft / Review 请求耗时合计 ${mins(dr.trace.seconds)} 分钟。组件执行更快，不代表总链路已经足够高效。`;
+const summaries=mk.tasks.flatMap(t=>Object.entries(t.trace?.roles||{}).filter(([k])=>k.endsWith("_summary")).map(([,v])=>v));
+$("compression").innerHTML=`M2K 组件构建出现 <strong>${mk.tasks.reduce((a,t)=>a+(t.trace?.compactions||0),0)} 次</strong>上下文压缩；摘要请求输入 ${n(summaries.reduce((a,v)=>a+v.input,0))}、输出 ${n(summaries.reduce((a,v)=>a+v.output,0))} Token，已计入请求总量。不能把这一次压缩推算成固定节省率。整机装配尚未接入结构化 WorkingContext。`;
+function ledger(){
+ const level=$("level-filter").value, rows=all.filter(c=>level==="all"||c.level===level);
+ $("ledger-rows").innerHTML=rows.map(c=>`<tr><td><a class="id" href="#record-${c.id}">${c.id}</a><br><span class="mono muted">${esc(c.started_at.slice(5,16).replace("T"," "))}</span></td><td>${arm(c)}<br>${esc(c.label)}</td><td>${status(c)}</td><td class="num">${c.blocks==null?"无成品":c.blocks}${c.id==="M1K"?" *":""}</td><td class="num">${mins(c.driver_seconds)}${c.id==="M2N"?" *":""}</td><td class="num">${n(c.observed_input)}</td><td class="num">${n(c.observed_output)}</td><td class="num">${c.physics?`<strong class="${c.physics.pass?"yes":"no"}">${dec(c.physics.score)}</strong>`:"未仿真"}</td></tr>`).join("");
+ $("record-details").innerHTML=rows.map(c=>`<details id="record-${c.id}"><summary>${c.id} · ${c.level} · ${status(c)}</summary><p>${esc(c.note)}</p><p><strong>实际读取技能：</strong>${c.skills.length?c.skills.map(s=>`<code>${esc(s)}@0.1.0</code>`).join("、"):"无"}</p><p class="small muted">DB 输入 / 输出 ${pair(c.db_input,c.db_output)}；已观察输入 / 输出 ${pair(c.observed_input,c.observed_output)}。${c.usage_basis==="request_end"?"观察值来自全阶段去重请求日志。":"观察值来自原报告的阶段落库值与失败 Planner 响应补充，不含未知下游中断用量。"} DB 已记录阶段合计 ${dec(c.db_minutes)} 分；DB 轮数 ${c.db_turns}。${c.id==="M2N"?"另有 1 条未配对的 request_start；未计入已完成响应的用量不可认为免费。":""}</p><div class="auditlinks"><a href="../../${esc(c.source)}">实验来源</a><a href="../../datacache/${esc(c.project)}/task_database.db">原任务数据库</a><a href="#cost" data-case="${c.id}">该记录阶段成本</a></div></details>`).join("");
+ for(const a of document.querySelectorAll("[data-case]"))a.addEventListener("click",()=>{$("case-select").value=a.dataset.case;cost();});
+}
+$("level-filter").addEventListener("change",ledger);ledger();
+$("generated").textContent="报告生成："+data.generated_at.slice(0,19).replace("T"," ")+"。";
+</script>
+</body>
+</html>
