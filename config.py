@@ -16,6 +16,15 @@ API_KEY_GOOGLE = os.getenv("API_KEY_GOOGLE", "")
 ALI_BASE_URL = os.getenv(
     "ALI_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
 )
+# An explicit compatible endpoint/key pair overrides the legacy Qwen settings.
+# A standalone OPENAI_API_KEY must not silently enable a different provider.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
+if OPENAI_BASE_URL:
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_BASE_URL requires OPENAI_API_KEY; do not mix provider credentials")
+    API_KEY_ALI = OPENAI_API_KEY
+    ALI_BASE_URL = OPENAI_BASE_URL
 SavedMachines = os.getenv("SavedMachines", "./datacache/SavedMachines")
 WINDOWS_PYTHON = os.getenv("BUILD_ARENA_WINDOWS_PYTHON", "")
 WINDOWS_PROFILE = os.getenv("BUILD_ARENA_WINDOWS_PROFILE", "")

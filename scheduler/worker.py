@@ -6,6 +6,7 @@ import json
 from scheduler.runner import runners
 from scheduler.task_db import *
 from spatial.agent import ProcessContext
+from spatial.runtime import IncompleteConstruction
 from autogen_agentchat.messages import BaseChatMessage
 
 def init_loop():
@@ -88,7 +89,8 @@ def worker_process(task: Task):
             
         # Mark task as failed in the database
         from scheduler.task_db import mark_task_failed
-        mark_task_failed(task.id, f"{error_type}: {error_msg}", task.db_path)
+        mark_task_failed(task.id, f"{error_type}: {error_msg}", task.db_path,
+                         retryable=not isinstance(e, IncompleteConstruction))
         if task.stage == "simulation":
             # GUI errors need inspection; blindly repeating input is unsafe.
             mark_simulation_task(task.id, "error", task.db_path)

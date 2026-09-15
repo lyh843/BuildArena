@@ -260,7 +260,8 @@ class ComparisonTests(unittest.TestCase):
             root = Path(directory)
             for name in (
                 "levels.yaml", "prompt.yaml", "agents/__init__.py", "skill/library.py",
-                "spatial/agent.py", "scheduler/worker.py", "scheduler/runner.py",
+                "spatial/agent.py", "spatial/construction.py", "spatial/runtime.py",
+                "spatial/build.py", "scheduler/worker.py", "scheduler/runner.py",
                 "scheduler/scheduler.py", "script/run_skill_comparison.py",
             ):
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
@@ -288,7 +289,8 @@ class ComparisonTests(unittest.TestCase):
             self.assertTrue(configs[1]["skills"]["enabled"])
             self.assertEqual(configs[0]["agents"], configs[1]["agents"])
             self.assertEqual(configs[0]["project"]["goal"], configs[1]["project"]["goal"])
-            self.assertEqual(len(configs[1]["skills"]["snapshot"]), 5)
+            self.assertEqual(len(configs[1]["skills"]["snapshot"]),
+                             len(SkillLibrary(allow_drafts=True).documents))
             self.assertTrue(all(case["construction_status"] == "queued"
                                 for case in manifest["cases"]))
             with self.assertRaises(FileExistsError):

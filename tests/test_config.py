@@ -11,6 +11,33 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ConfigTests(unittest.TestCase):
+    def test_explicit_compatible_pair_overrides_legacy_qwen_pair(self):
+        env = {
+            "OPENAI_API_KEY": "compatible-test-key",
+            "OPENAI_BASE_URL": "https://compatible.example.invalid/v1",
+            "API_KEY_ALI": "legacy-test-key",
+            "ALI_BASE_URL": "https://legacy.example.invalid/v1",
+        }
+        with patch.dict(os.environ, env, clear=True), patch("dotenv.load_dotenv"):
+            config = ModuleType("config")
+            config.__dict__.update(runpy.run_path(str(ROOT / "config.py")))
+            with patch.dict(sys.modules, {"config": config}):
+                registry = runpy.run_path(str(ROOT / "agents" / "__init__.py"))
+        for client in [*registry["model_clients"].values(),
+                       *registry["planner_model_clients"].values()]:
+            settings = client.dump_component().config
+            self.assertEqual(settings["api_key"].get_secret_value(), env["OPENAI_API_KEY"])
+            self.assertEqual(settings["base_url"], env["OPENAI_BASE_URL"])
+            asyncio.run(client.close())
+
+    def test_compatible_endpoint_never_uses_legacy_key(self):
+        with patch.dict(os.environ, {
+            "OPENAI_BASE_URL": "https://compatible.example.invalid/v1",
+            "API_KEY_ALI": "legacy-test-key",
+        }, clear=True), patch("dotenv.load_dotenv"):
+            with self.assertRaisesRegex(ValueError, "requires OPENAI_API_KEY"):
+                runpy.run_path(str(ROOT / "config.py"))
+
     def test_only_configured_providers_are_registered(self):
         for enabled in (False, True):
             with self.subTest(ali_enabled=enabled):

@@ -11,7 +11,7 @@ import uuid
 from autogen_core import CancellationToken
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.base import TaskResult, Response
-from autogen_agentchat.conditions import TextMentionTermination
+from autogen_agentchat.conditions import TextMentionTermination, FunctionalTermination
 from autogen_agentchat.teams import BaseGroupChat, RoundRobinGroupChat
 from autogen_agentchat.messages import TextMessage, BaseChatMessage
 
@@ -22,6 +22,8 @@ from spatial.utils import xml_to_dict
 from agents import model_clients, planner_model_clients
 from scheduler.task_db import Task, get_config, add_task_objection, update_task_raise_objection
 from skill.library import SkillSession, record_event
+from spatial.runtime import TracedClient, WorkingContext, IncompleteConstruction, require_completion
+from spatial.construction import Blueprint, BatchExecutor, BUILD_OPERATIONS
 
 ProcessContext = namedtuple('ProcessContext', ['context', 'result', 'token_input', 'token_output', 'turn', 'objection'])
 
@@ -32,6 +34,9 @@ def init_agents(agent_config: dict, **kwargs):
     client = model_clients[agent_config["model"]]
     if agent_config["name"] == "planner":
         client = planner_model_clients.get(agent_config["model"], client)
+    trace_path = kwargs.pop("trace_path", None)
+    if trace_path:
+        client = TracedClient(client, trace_path, agent_config["name"])
     agent = AssistantAgent(
         name=agent_config['name'], 
         model_client=client,
@@ -230,6 +235,199 @@ only for a verified complete construction or an accepted objection.
 class MultiAgents():
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
+
+    def construction_agent(self, config, role, tools, facts, log_path, instructions):
+        agent_config = dict(config["agents"][role])
+        agent_config["system_message"] += "\n" + instructions
+        client = model_clients[agent_config["model"]]
+        settings = config.get("construction", {}).get("context", {})
+        context = WorkingContext(
+            TracedClient(client, log_path, role + "_summary"), facts, log_path,
+            max_chars=settings.get(role + "_max_chars", 120000 if role.startswith("draft") else 60000),
+            keep_messages=settings.get("keep_messages", 8),
+        )
+        return init_agents(agent_config, tools=tools, trace_path=log_path, model_context=context)
+
+    async def review_recipe(self, task, config, blueprint, log_path, *, repair=False):
+        instructions = """
+For this structured recipe workflow, these instructions supersede the legacy prose
+blueprint format. Use stable operation IDs, real tool face labels, and $operation_id
+references to previously created blocks. The first recipe declares every operation
+and immutable assembly interfaces via submit_blueprint. Later changes use only
+patch_blueprint with the current version. Do not repeat the full blueprint in chat.
+Discuss only issues, changed IDs, assumptions and unresolved requirements.
+The reviewer calls validate_blueprint for actual geometry, checks functional intent
+and interfaces separately, then finish_review. A failed replay is evidence about
+that operation, not proof of global impossibility. Report concise evidence, not a
+manual all-pairs distance calculation. Finish only after approved_version matches.
+"""
+        if repair:
+            instructions += """
+This is a bounded local repair. Preserve the successful executed prefix and all
+assembly interfaces/functional intent. Only modify pending operations. Changed
+endpoint faces require an explicit structural review; nonzero length alone does
+not prove strength. If interfaces must change, report that escalation is needed.
+"""
+
+        async def finish_review(version: int, review: str) -> str:
+            """Approve a validated recipe and finish this review."""
+            result = await blueprint.approve_blueprint(version, review)
+            return "Recipe approved. TERMINATE" if result["ok"] else json.dumps(result)
+
+        drafter = self.construction_agent(
+            config, "drafter", [blueprint.submit_blueprint, blueprint.patch_blueprint,
+                                blueprint.inspect_blueprint],
+            blueprint.facts, log_path, instructions)
+        reviewer = self.construction_agent(
+            config, "draft_reviewer", [blueprint.inspect_blueprint, blueprint.validate_blueprint,
+                                       finish_review], blueprint.facts, log_path, instructions)
+        team = RoundRobinGroupChat(
+            [drafter, reviewer],
+            max_turns=config.get("construction", {}).get("review_max_turns", 50),
+            termination_condition=FunctionalTermination(
+                lambda messages: blueprint.version > 0
+                and blueprint.approved_version == blueprint.version),
+        )
+        result = await self.run_team_stream(team, "Review the canonical task and recipe.", log_path)
+        require_completion(result, reviewer.name)
+        if blueprint.approved_version != blueprint.version or not blueprint.version:
+            raise IncompleteConstruction("unapproved_blueprint: reviewer did not approve current version")
+        return result, [drafter._model_context, reviewer._model_context]
+
+    async def draft_recipe(self, task, config):
+        log_path = Path(task.db_path).parent / "draft" / f"requests_{task.id}.jsonl"
+        tools = {name: method for name, method in machine.operations.items()
+                 if name in BUILD_OPERATIONS}
+        blueprint = Blueprint(log_path.with_name(f"blueprint_{task.id}.jsonl"),
+                              task.content, tools)
+        result, contexts = await self.review_recipe(task, config, blueprint, log_path)
+        document = {**blueprint.document(), "task": task.content}
+        return ProcessContext(
+            result.messages, "<construction_recipe>" + json.dumps(document, ensure_ascii=False)
+            + "</construction_recipe>",
+            get_token_input(result.messages) + sum(c.summary_input for c in contexts),
+            get_token_output(result.messages) + sum(c.summary_output for c in contexts),
+            get_turn(result.messages), False)
+
+    async def build_recipe(self, task, config, machine, save_dir, document):
+        if (type(document.get("version")) is not int or document["version"] < 1
+                or not isinstance(document.get("task"), str)
+                or not isinstance(document.get("interfaces"), str)):
+            raise IncompleteConstruction("invalid_blueprint_document")
+        log_path = Path(save_dir) / f"requests_{task.id}.jsonl"
+        tools = [method for name, method in machine.operations.items() if name in BUILD_OPERATIONS]
+        executor = BatchExecutor(machine, tools, Path(save_dir) / "batches.jsonl")
+        blueprint = Blueprint(Path(save_dir) / "blueprints.jsonl", document["task"],
+                              executor.tools, executor=executor)
+        blueprint.operations = blueprint.validate_operations(document["operations"])
+        blueprint.interfaces, blueprint.version = document["interfaces"], document["version"]
+        # Revalidate at the execution boundary instead of trusting a serialized approval.
+        validation = await blueprint.validate_blueprint()
+        if not validation["ok"]:
+            # The first local repair may be needed before any live operation.
+            executor.failure = validation.get("failure")
+        else:
+            blueprint.approved_version = blueprint.version
+        blueprint.save()
+        all_messages, contexts = [], []
+        settings = config.get("construction", {})
+        remaining_turns = settings.get("build_max_turns", 300)
+        repairs = 0
+        repair_limit = settings.get("max_local_repairs", 2)
+        if not 0 <= repair_limit <= 2:
+            raise ValueError("max_local_repairs must be 0..2")
+        finished = False
+
+        def facts():
+            pending = [op for op in blueprint.operations if op["id"] not in executor.completed]
+            return json.dumps({"task": blueprint.task, "version": blueprint.version,
+                               "interfaces": blueprint.interfaces, "progress": executor.state(),
+                               "next_operations": pending[:5], "remaining": len(pending)},
+                              ensure_ascii=False)
+
+        async def finish_build(review: str) -> str:
+            """Verify all approved operations are executed and current geometry is collision-free."""
+            nonlocal finished
+            if not review.strip() or not blueprint.complete():
+                return json.dumps({"ok": False, "error": "Recipe incomplete or geometry invalid",
+                                   "progress": executor.state()})
+            finished = True
+            record_event(log_path, event="construction_verified", version=blueprint.version, review=review)
+            return "Construction verified. TERMINATE"
+
+        async def execute_next_batch(operation_ids: list[str], version: int) -> dict:
+            """Execute the next 1..5 canonical operation IDs in one sequential batch."""
+            return await blueprint.execute_next_batch(operation_ids, version)
+
+        instructions = """
+This structured workflow supersedes one-block-per-turn instructions. Guidance gives
+the next 1..5 canonical operation IDs and version. Builder calls execute_next_batch
+ONCE for that batch; the tool executes operations sequentially and stops on failure.
+No tool introduction or full-state repetition. Do not invent replacement operations.
+Use inspect_blueprint/get_block_details/check_connection on demand. Guidance calls
+finish_build only after every operation is complete and functional intent is reviewed.
+Never emit a stop marker yourself. The runtime handles bounded redesign on failure.
+"""
+        while remaining_turns > 0:
+            if executor.failure:
+                if executor.failure.get("requires_manual_reconciliation"):
+                    raise IncompleteConstruction("tool_failure: actual state needs reconciliation")
+                if repairs >= repair_limit:
+                    raise IncompleteConstruction("local_repair_exhausted: " + json.dumps(executor.failure))
+                repairs += 1
+                blueprint.approved_version = None
+                blueprint.validation = None
+                record_event(log_path, event="local_repair_start", attempt=repairs, failure=executor.failure)
+                review, memories = await self.review_recipe(task, config, blueprint, log_path, repair=True)
+                all_messages.extend(review.messages)
+                contexts.extend(memories)
+                executor.failure = None
+            builder = self.construction_agent(
+                config, "builder", [execute_next_batch, blueprint.inspect_blueprint,
+                                    machine.get_block_details],
+                facts, log_path, instructions)
+            guidance = self.construction_agent(
+                config, "guidance", [blueprint.inspect_blueprint, machine.get_block_details,
+                                     machine.check_connection, finish_build],
+                facts, log_path, instructions)
+            contexts.extend([builder._model_context, guidance._model_context])
+            team = RoundRobinGroupChat(
+                [guidance, builder], max_turns=remaining_turns,
+                termination_condition=FunctionalTermination(
+                    lambda messages: bool(finished or executor.failure)),
+            )
+            # Stop after a failed batch, before agents spend more turns arguing or objecting.
+            stream = team.run_stream(task="Continue the canonical recipe from verified progress.")
+            used_turns = 0
+            try:
+                async for message in stream:
+                    if isinstance(message, TaskResult):
+                        record_event(log_path, event="team_result", stop_reason=message.stop_reason)
+                        if not finished and not executor.failure:
+                            require_completion(message, guidance.name)
+                        break
+                    all_messages.append(message)
+                    record_event(log_path, event="message", message=message.model_dump(mode="json"))
+                    # Agent chat messages end a turn; tool request/execution events do not.
+                    if isinstance(message, BaseChatMessage) and message.source in (builder.name, guidance.name):
+                        used_turns += 1
+            finally:
+                await stream.aclose()
+            remaining_turns -= used_turns
+            if finished:
+                break
+            if not executor.failure:
+                raise IncompleteConstruction("missing_explicit_review")
+        if not finished or not blueprint.complete():
+            raise IncompleteConstruction("turn_limit: construction did not finish")
+        return ProcessContext(
+            all_messages,
+            {"result": machine.get_machine_summary(), "cost": machine.cost,
+             "num_blocks": machine.num_blocks, "has_spinful": machine.has_spinful,
+             "blueprint_version": blueprint.version, "local_repairs": repairs},
+            get_token_input(all_messages) + sum(c.summary_input for c in contexts),
+            get_token_output(all_messages) + sum(c.summary_output for c in contexts),
+            get_turn(all_messages), False)
         
     def prepare_team(self, participants: List[AssistantAgent], termination_string: str = "TERMINATE", max_turns: int = 50):
         """
@@ -253,15 +451,20 @@ class MultiAgents():
             name=agent.name,
             model_client=agent._model_client,
             system_message=agent._system_messages[0].content,
-            reflect_on_tool_use=agent._reflect_on_tool_use, 
+            reflect_on_tool_use=agent._reflect_on_tool_use,
+            model_context=agent._model_context,
             tools=tools, 
         )
         
         return agent_w_tools
     
-    async def run_team_stream(self, team: BaseGroupChat, task: str | BaseChatMessage | List[BaseChatMessage]) -> TaskResult:
+    async def run_team_stream(self, team: BaseGroupChat, task: str | BaseChatMessage | List[BaseChatMessage], log_path=None) -> TaskResult:
         stream = team.run_stream(task=task)
         async for message in stream:
+            if log_path:
+                record_event(log_path, event="team_result" if isinstance(message, TaskResult) else "message",
+                             **({"stop_reason": message.stop_reason} if isinstance(message, TaskResult)
+                                else {"message": message.model_dump(mode="json")}))
             if isinstance(message, TaskResult):
                 if self.verbose:
                     print("Task Finished")
@@ -290,7 +493,7 @@ class MultiAgents():
             options = {"tools": [skills.search_skills, skills.read_skill],
                        "reflect_on_tool_use": True,
                        "max_tool_iterations": settings.get("max_tool_iterations", 4)}
-        planner = init_agents(agent_config, **options)
+        planner = init_agents(agent_config, trace_path=log_path, **options)
         full_context = [TextMessage(content=task.content, source="user")]
         started = time.monotonic()
         log = dict(task_id=task.id, attempt_id=attempt_id, role="planner")
@@ -348,7 +551,7 @@ class MultiAgents():
                                  objection=None)
         return context
     
-    async def draft(self, task: Task) -> ProcessContext: 
+    async def draft(self, task: Task) -> ProcessContext:
         # Initialize objection
         objection = Objection(task)
         
@@ -356,8 +559,11 @@ class MultiAgents():
             print(">>> Draft Stage: \n")
         
         config = get_config(task.bind_config, task.db_path).config
-        drafter = init_agents(config['agents']['drafter'])
-        draft_reviewer = init_agents(config['agents']['draft_reviewer'])
+        if config.get("construction", {}).get("structured", False):
+            return await self.draft_recipe(task, config)
+        log_path = Path(task.db_path).parent / "draft" / f"requests_{task.id}.jsonl"
+        drafter = init_agents(config['agents']['drafter'], trace_path=log_path)
+        draft_reviewer = init_agents(config['agents']['draft_reviewer'], trace_path=log_path)
             
         task = task.content
 
@@ -370,7 +576,8 @@ class MultiAgents():
         await draft_reviewer.on_reset(CancellationToken())
         
         draft_team = self.prepare_team(participants=[drafter, draft_reviewer])
-        draft_result = await self.run_team_stream(draft_team, task)
+        draft_result = await self.run_team_stream(draft_team, task, log_path)
+        require_completion(draft_result, draft_reviewer.name, objected=objection.objection_raised)
 
         summary_prompt = "Please format the final version of the blueprint according to the final decision of the reviewer."
         draft_summary = await drafter.on_messages([TextMessage(content=summary_prompt, source="user")], CancellationToken())
@@ -408,10 +615,27 @@ class MultiAgents():
         os.makedirs(save_dir, exist_ok=True)
         
         config = get_config(task.bind_config, task.db_path).config
-        builder = init_agents(config['agents']['builder'])
+        if not refine and not assemble and "<construction_recipe>" in task.content:
+            start = task.content.index("<construction_recipe>") + len("<construction_recipe>")
+            end = task.content.index("</construction_recipe>", start)
+            try:
+                return await self.build_recipe(task, config, machine, save_dir,
+                                               json.loads(task.content[start:end]))
+            except IncompleteConstruction:
+                raise
+            except Exception as error:
+                # SDK request retries are already bounded. Do not restart a partially built recipe.
+                raise IncompleteConstruction(
+                    f"construction_error: {type(error).__name__}: {error}"
+                ) from error
+            finally:
+                # Preserve a checkpoint even when a request/repair fails; never approve it.
+                machine.to_file(output_dir=save_dir)
+        log_path = Path(save_dir) / f"requests_{task.id}.jsonl"
+        builder = init_agents(config['agents']['builder'], trace_path=log_path)
         guidance_config = dict(config['agents']['guidance'])
         guidance_config["system_message"] += "\n" + objection.geometry_instructions
-        guidance = init_agents(guidance_config)
+        guidance = init_agents(guidance_config, trace_path=log_path)
             
         if self.verbose:
             stage_name = "Assemble" if assemble else "Build" if not refine else "Refine"
@@ -438,10 +662,15 @@ class MultiAgents():
         await guidance.on_reset(CancellationToken())
         participants = [builder, guidance] if not refine else [guidance, builder]
         build_team = self.prepare_team(participants=participants, max_turns=max_turns)
-        build_result = await self.run_team_stream(build_team, task)
+        build_result = await self.run_team_stream(build_team, task, log_path)
         
         # Save machine and preview images under the save_dir
         machine.to_file(output_dir=save_dir)
+        require_completion(build_result, guidance.name, objected=objection.objection_raised)
+        if not objection.objection_raised and (
+            machine.num_blocks == 0 or machine.in_collision()[0]
+        ):
+            raise IncompleteConstruction("invalid_final_geometry: empty or colliding structure")
         bsg_path = os.path.join(save_dir, f"{machine.name}.bsg")
 
         if self.verbose:

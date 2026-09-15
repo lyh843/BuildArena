@@ -61,7 +61,8 @@ def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=7200
         "input_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                          for name in (
                              "levels.yaml", "prompt.yaml", "agents/__init__.py",
-                             "skill/library.py", "spatial/agent.py", "scheduler/worker.py",
+                             "skill/library.py", "spatial/agent.py", "spatial/construction.py",
+                             "spatial/runtime.py", "spatial/build.py", "scheduler/worker.py",
                              "scheduler/runner.py", "scheduler/scheduler.py",
                              "script/run_skill_comparison.py",
                          )},

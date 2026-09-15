@@ -1,3 +1,15 @@
+construction:
+  structured: true
+  build_max_turns: 300
+  review_max_turns: 50
+  max_local_repairs: 2
+  context:
+    builder_max_chars: 60000
+    guidance_max_chars: 60000
+    drafter_max_chars: 120000
+    draft_reviewer_max_chars: 120000
+    keep_messages: 8
+
 agents:
   planner:
     name: planner

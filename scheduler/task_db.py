@@ -487,7 +487,8 @@ def mark_task_processing(task_id: str, db_path: Optional[str] = None):
             session.add(task)
             session.commit()
             
-def mark_task_failed(task_id: str, error_info: Optional[str] = None, db_path: Optional[str] = None):
+def mark_task_failed(task_id: str, error_info: Optional[str] = None, db_path: Optional[str] = None,
+                     *, retryable: bool = True):
     engine = get_engine(db_path)
     with Session(engine) as session:
         task = session.get(Task, task_id)
@@ -497,6 +498,8 @@ def mark_task_failed(task_id: str, error_info: Optional[str] = None, db_path: Op
             task.error_info = error_info
             # Increment retry count when task fails
             task.retry_count += 1
+            if not retryable:
+                task.retry_count = max(task.retry_count, task.max_retries)
             session.add(task)
             session.commit()
 

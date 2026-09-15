@@ -722,6 +722,20 @@ class Machine:
         
         return collision_msg
         
+    def check_connection(self, block_a: str, face_a: str, block_b: str, face_b: str) -> dict:
+        """Inspect actual endpoint distance without attempting a connection."""
+        a, b = self.blocks.get(str(block_a)), self.blocks.get(str(block_b))
+        if a is None or b is None:
+            return {"ok": False, "code": "missing_block"}
+        if face_a not in a.faces or face_b not in b.faces:
+            return {"ok": False, "code": "missing_face"}
+        start = a.faces[face_a].center.virtual
+        end = b.faces[face_b].center.virtual
+        distance = float(np.linalg.norm(start - end))
+        return {"ok": distance >= 0.01, "code": None if distance >= 0.01 else "faces_too_close",
+                "start": start.tolist(), "end": end.tolist(), "distance": distance,
+                "minimum_distance": 0.01}
+
     @operation(placeholder=AvailableConnectors, group="build")
     def connect_blocks(self, block_a: Union[str, int], face_a: str, block_b: Union[str, int], face_b: str, connector: str, note: str = None):
         """
@@ -755,7 +769,9 @@ class Machine:
             if face_a in block_a.faces.keys() and face_b in block_b.faces.keys():
                 face_a: Face = block_a.faces.get(face_a)
                 face_b: Face = block_b.faces.get(face_b)
-                if np.linalg.norm(face_a.center.virtual - face_b.center.virtual) < 0.01:
+                if not self.check_connection(
+                    block_a.local_id, face_a.color, block_b.local_id, face_b.color
+                )["ok"]:
                     error_message = "The two faces are too close to each other, please try again."
                     self.update_prompt(pre_msg=error_message)
                     self.log_failed_operation("connect_blocks", error_message, "faces_too_close")
