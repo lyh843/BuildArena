@@ -135,7 +135,7 @@ def run(profile, machine_file, output_dir, duration, set_ground=False):
             # Unity's log text field consumes shortcuts until it loses focus.
             windows_click(*win32gui.ClientToScreen(hwnd, (width - 100, height - 150)))
             time.sleep(0.3)
-            pyautogui.hotkey("ctrl", "l", interval=0.08)
+            pyautogui.hotkey("ctrl", "l", interval=0.3)
             time.sleep(0.5)
         for _ in range(10):
             if observed() == visible:

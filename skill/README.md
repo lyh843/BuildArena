@@ -4,13 +4,14 @@
 
 ## 当前阶段
 
-- 主题：Support 的桥梁与接触支承；Transport 的轮式驱动、转向、装载稳定与制动。
-- 状态：Statics 的五条 Support 草案已通过纯函数自测，另有一条 Brace 几何经验技能；新提炼六条 Transport 草案，仅做静态与只读检索检查。所有草案人工审核仍待完成，验证状态以各文件为准。
+- 主题：Support 的桥梁与接触支承；Transport 的轮式运输；Lift 的反冲推进、加热、质量配平与对称装配。
+- 状态：Statics 的五条 Support 草案已通过纯函数自测，另有一条 Brace 几何经验技能；六条 Transport 草案及六条 Lift 草案完成静态与只读检索检查。所有草案人工审核仍待完成，验证状态以各文件为准。
 - 来源清单：[book_candidates.md](book_candidates.md)。
 - 原始文件位置：`skill/books/`，该目录中的原书默认由 Git 忽略。
 - 提炼提示词：[EXTRACT_PROMPT.md](EXTRACT_PROMPT.md)。
 - 首批技能与来源、检查记录：[drafts/README.md](drafts/README.md)。
 - 汽车理论 Transport 技能、页码与迁移限制：[drafts/TRANSPORT_README.md](drafts/TRANSPORT_README.md)。
+- 理论力学与 Rocket 的 Lift 技能、页码与实际环境限制：[drafts/LIFT_README.md](drafts/LIFT_README.md)。
 - 已提供 Planner 专用的可关闭检索接口；实验启用草案需明确授权，书目审核勾选项未代替人工确认。
 
 ## 接口与开关

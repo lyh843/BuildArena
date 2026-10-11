@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="2400" height="1590" viewBox="0 0 2400 1590"
+     role="img" aria-labelledby="title description">
+  <title id="title">BuildArena: Current Skill-Augmented Agent Workflow</title>
+  <desc id="description">
+    Architecture verified against the local repository on September 16, 2026.
+    Optional read-only skill retrieval augments only the Planner. Each planned
+    substructure passes through Drafter and Reviewer, a versioned recipe and real
+    geometry preflight, then Guidance and Builder with sequential batches of one
+    to five operations. Failed batches can return to drafting for at most two
+    local repairs. WorkingContext combines canonical facts, recent dialogue and
+    threshold-triggered LLM summaries only for structured drafting and building.
+    Refine for spinful structures and Assemble for multiple substructures reuse
+    Builder and Guidance in the legacy dialogue path. Completion and evidence
+    guards, the scheduler, SQLite and request logs support the workflow.
+    Physics evaluation is a separate run: Transport uses Controller, simulation
+    export, a Windows bridge, Besiege with Lua and trajectory feedback, up to
+    three trials. Support and Lift skip Controller. Skill code is not executed.
+  </desc>
+  <defs>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #17191b; letter-spacing: 0; }
+      .title { font-size: 43px; font-weight: 700; }
+      .subtitle { font-size: 23px; fill: #565c61; }
+      .section { font-size: 28px; font-weight: 700; }
+      .role { font-size: 30px; font-weight: 700; }
+      .label { font-size: 24px; }
+      .body { font-size: 22px; }
+      .small { font-size: 20px; fill: #535a60; }
+      .tiny { font-size: 18px; fill: #535a60; }
+      .mono { font-family: "DejaVu Sans Mono", Consolas, monospace; font-size: 18px; }
+      .green { fill: #19735d; }
+      .orange { fill: #a04420; }
+      .boundary { fill: none; stroke: #24272a; stroke-width: 3.5; stroke-dasharray: 13 8; }
+      .flow { fill: none; stroke: #44494c; stroke-width: 6; stroke-linejoin: miter; marker-end: url(#arrow); }
+      .wire { fill: none; stroke: #44494c; stroke-width: 3; marker-end: url(#arrow-small); }
+      .knowledge { fill: none; stroke: #19735d; stroke-width: 4; marker-end: url(#arrow-green); }
+      .repair { fill: none; stroke: #b9542c; stroke-width: 4; stroke-dasharray: 10 7; marker-end: url(#arrow-orange); }
+      .optional { fill: #fafbfc; stroke: #7b848a; stroke-width: 2; stroke-dasharray: 7 5; }
+      .tool { fill: #f0f8fc; stroke: #81a9bc; stroke-width: 2; }
+    </style>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto">
+      <path d="M0 0 L12 6 L0 12 Z" fill="#44494c"/>
+    </marker>
+    <marker id="arrow-small" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#44494c"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#19735d"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#b9542c"/>
+    </marker>
+    <!-- Original vector agents: editable shapes, no embedded or linked bitmaps. -->
+    <g id="robot" stroke="#102b3b" stroke-width="2.7" stroke-linejoin="round">
+      <ellipse cx="64" cy="142" rx="49" ry="4" fill="#e6ebee" stroke="none"/>
+      <path d="M49 117 L45 134 L31 136 L31 142 L55 142 L62 119" fill="#168cd0"/>
+      <path d="M70 118 L75 135 L88 137 L88 142 L65 142 L61 119" fill="#168cd0"/>
+      <path d="M34 96 L18 106 L9 123 L18 128 L32 110 L44 108" fill="#36b8f0"/>
+      <path d="M88 96 L101 106 L116 111 L112 122 L95 117 L81 108" fill="#36b8f0"/>
+      <circle cx="25" cy="107" r="5" fill="#d9e9ef"/>
+      <circle cx="99" cy="108" r="5" fill="#d9e9ef"/>
+      <path d="M44 88 L84 88 L91 112 L78 126 L48 125 L35 110 Z" fill="#149ada"/>
+      <path d="M48 97 H79 L76 113 H51 Z" fill="#d8f6ff"/>
+      <path d="M56 105 H70" fill="none"/>
+      <path d="M59 77 V89 H71 V77" fill="#7da5b7"/>
+      <path d="M27 23 L19 12" fill="none"/>
+      <circle cx="17" cy="9" r="4" fill="#73e4ff"/>
+      <path d="M101 22 L108 12" fill="none"/>
+      <circle cx="110" cy="9" r="4" fill="#73e4ff"/>
+      <rect x="13" y="39" width="12" height="26" rx="5" fill="#607c90"/>
+      <rect x="102" y="39" width="12" height="26" rx="5" fill="#607c90"/>
+      <path d="M24 32 Q26 16 49 15 L83 15 Q105 18 105 35 L102 68 Q99 84 81 87
+               L47 85 Q25 82 23 66 Z" fill="#20a9eb"/>
+      <path d="M43 17 L48 33 L82 33 L88 18" fill="#1286cc"/>
+      <path d="M29 41 Q40 35 48 38 M83 38 Q92 35 98 41" fill="none" stroke="#90eaff"/>
+      <ellipse cx="44" cy="55" rx="10" ry="13" fill="#80f0ff"/>
+      <ellipse cx="84" cy="55" rx="10" ry="13" fill="#80f0ff"/>
+      <ellipse cx="42" cy="51" rx="3" ry="5" fill="white" stroke="none"/>
+      <ellipse cx="82" cy="51" rx="3" ry="5" fill="white" stroke="none"/>
+      <path d="M58 73 Q64 76 70 72" fill="none" stroke-width="2"/>
+    </g>
+    <g id="clipboard" stroke="#244c60" stroke-width="2.4" stroke-linejoin="round">
+      <path d="M2 4 H32 V45 H2 Z" fill="white"/>
+      <path d="M11 1 H23 V8 H11 Z" fill="#67c4e7"/>
+      <path d="M8 16 H25 M8 23 H25 M8 30 H20" fill="none"/>
+    </g>
+    <g id="shield" stroke="#195f50" stroke-width="2.5" stroke-linejoin="round">
+      <path d="M20 0 L38 7 V25 Q34 39 20 47 Q6 39 2 25 V7 Z" fill="#e4f6ec"/>
+      <path d="M10 23 L17 30 L30 15" fill="none" stroke-width="4"/>
+    </g>
+    <g id="wrench" stroke="#213c49" stroke-width="2.4" stroke-linejoin="round">
+      <path d="M9 1 Q-2 5 2 16 L9 22 L9 48 Q15 56 21 48 V23
+               Q34 18 29 5 L21 13 L13 10 L13 1 Z" fill="#d1dce1"/>
+      <circle cx="15" cy="45" r="2.5" fill="white"/>
+    </g>
+    <g id="document" stroke="#244c60" stroke-width="2.5" stroke-linejoin="round">
+      <path d="M0 0 H57 L80 23 V100 H0 Z" fill="#f2fbff"/>
+      <path d="M57 0 V23 H80" fill="#bce6f7"/>
+      <path d="M14 43 H64 M14 58 H64 M14 73 H48" fill="none"/>
+    </g>
+    <g id="books" stroke="#195f50" stroke-width="2.7">
+      <rect x="0" y="13" width="20" height="60" rx="2" fill="#a8d8ca"/>
+      <rect x="23" y="3" width="22" height="70" rx="2" fill="#dcf1e9"/>
+      <path d="M52 12 L69 7 L85 67 L67 73 Z" fill="#73b99f"/>
+      <path d="M5 23 H15 M5 62 H15 M29 16 H39 M29 62 H39" fill="none"/>
+    </g>
+    <g id="gamepad" stroke="#244c60" stroke-width="2.7" stroke-linecap="round">
+      <path d="M20 0 H66 Q79 0 83 16 L90 40 Q90 52 79 52 L62 39 H25 L11 51
+               Q-1 55 0 40 L7 14 Q10 0 20 0 Z" fill="#d9f1fc"/>
+      <path d="M18 20 H36 M27 11 V29" fill="none"/>
+      <circle cx="62" cy="17" r="4" fill="#20a9eb"/>
+      <circle cx="74" cy="27" r="4" fill="#73b99f"/>
+    </g>
+  </defs>
+
+  <rect width="2400" height="1590" fill="white"/>
+  <text x="60" y="68" class="title">BuildArena: Current Skill-Augmented Agent Workflow</text>
+  <text x="60" y="108" class="subtitle">Implemented architecture  /  structured construction + optional physics evaluation</text>
+  <text x="2340" y="105" text-anchor="end" class="small">Repository snapshot: 2026-09-16</text>
+
+  <!-- Optional, read-only knowledge path. Not an automatic learning loop. -->
+  <g id="knowledge-path">
+    <use xlink:href="#books" x="72" y="161"/>
+    <text x="184" y="184" class="label" font-weight="700">Books + experience</text>
+    <text x="184" y="216" class="small">Offline extraction / curation</text>
+    <text x="184" y="244" class="tiny">Statics, vehicle theory, failure cases</text>
+    <path d="M527 207 H585" class="knowledge"/>
+    <rect x="600" y="151" width="685" height="120" rx="6" fill="#edf7f2" stroke="#77ad99" stroke-width="2"/>
+    <text x="624" y="184" class="section green">Skill Library + SkillSession</text>
+    <text x="624" y="216" class="body">Applicability filter + TF-IDF retrieval + frozen snapshot</text>
+    <text x="624" y="247" class="small">search_skills / read_skill  |  reference-only; code is not executed</text>
+    <path d="M600 258 H324 V489" class="knowledge"/>
+    <rect x="341" y="284" width="245" height="31" fill="white"/>
+    <text x="349" y="306" class="small green">Optional; Planner only</text>
+    <text x="1340" y="187" class="label" font-weight="700">Knowledge is not execution authority.</text>
+    <text x="1340" y="223" class="body">Skill IDs, assumptions and applicable conclusions travel</text>
+    <text x="1340" y="254" class="body">downstream through each substructure's design requirements.</text>
+  </g>
+
+  <!-- Baseline-inspired composition with paired agents and return arrows. -->
+  <rect x="42" y="344" width="2316" height="736" class="boundary"/>
+  <rect x="74" y="327" width="548" height="36" fill="white"/>
+  <text x="88" y="354" class="section">LLM Agentic Construction Workflow</text>
+  <text x="2308" y="393" text-anchor="end" class="small">Each planned substructure enters Draft / Build</text>
+
+  <g id="planner-stage">
+    <text x="66" y="520" class="label" font-weight="700">Task</text>
+    <text x="66" y="550" class="small">Goal + constraints</text>
+    <path d="M0 604 H240" class="flow"/>
+    <use xlink:href="#robot" transform="translate(251 492) scale(1.16)"/>
+    <use xlink:href="#clipboard" transform="translate(263 594) rotate(-15)"/>
+    <text x="324" y="698" text-anchor="middle" class="role">Planner</text>
+    <text x="324" y="733" text-anchor="middle" class="body">Decompose task</text>
+    <text x="324" y="764" text-anchor="middle" class="small">Select applicable skills</text>
+    <path d="M410 604 H608" class="flow"/>
+    <text x="506" y="560" text-anchor="middle" class="label">Building plan</text>
+    <text x="506" y="642" text-anchor="middle" class="tiny">XML / design requirements</text>
+  </g>
+
+  <g id="draft-stage">
+    <text x="661" y="404" class="small" font-weight="700">01  STRUCTURED DRAFT</text>
+    <path d="M626 604 V480 H692" class="flow"/>
+    <path d="M700 480 H668 V699 H693" class="flow"/>
+    <path d="M997 699 H1030 V480 H996" class="flow"/>
+    <use xlink:href="#robot" transform="translate(702 418) scale(.91)"/>
+    <use xlink:href="#clipboard" transform="translate(797 513) rotate(12) scale(.8)"/>
+    <text x="833" y="474" class="role">Drafter</text>
+    <text x="833" y="510" class="small">Submit recipe</text>
+    <text x="833" y="541" class="small">Patch changed IDs</text>
+    <text x="828" y="605" text-anchor="middle" class="tiny">Review / revise</text>
+    <use xlink:href="#robot" transform="translate(702 636) scale(.91)"/>
+    <use xlink:href="#shield" transform="translate(794 726) scale(.8)"/>
+    <text x="833" y="690" class="role">Reviewer</text>
+    <text x="833" y="726" class="small">Geometry + intent</text>
+    <text x="833" y="757" class="small">Approve version</text>
+    <path d="M842 774 V811" class="wire"/>
+    <rect x="664" y="821" width="375" height="107" rx="6" class="tool"/>
+    <text x="688" y="853" class="label" font-weight="700">Blueprint + Preflight</text>
+    <text x="688" y="883" class="small">Versioned operations / interfaces</text>
+    <text x="688" y="911" class="small">Replay in a temporary Machine</text>
+    <path d="M1047 604 H1176" class="flow"/>
+    <text x="1114" y="535" text-anchor="middle" class="small">Approved</text>
+    <text x="1114" y="563" text-anchor="middle" class="small">recipe</text>
+    <text x="1114" y="645" text-anchor="middle" class="tiny">Revalidated</text>
+    <text x="1114" y="670" text-anchor="middle" class="tiny">before execution</text>
+  </g>
+
+  <g id="build-stage">
+    <text x="1228" y="404" class="small" font-weight="700">02  BATCHED BUILD</text>
+    <path d="M1194 604 V480 H1259" class="flow"/>
+    <path d="M1264 480 H1230 V699 H1259" class="flow"/>
+    <path d="M1563 699 H1590 V480 H1563" class="flow"/>
+    <use xlink:href="#robot" transform="translate(1268 418) scale(.91)"/>
+    <use xlink:href="#clipboard" transform="translate(1364 509) rotate(12) scale(.8)"/>
+    <text x="1399" y="474" class="role">Guidance</text>
+    <text x="1399" y="510" class="small">Choose next 1-5 IDs</text>
+    <text x="1399" y="541" class="small">Review completion</text>
+    <text x="1392" y="605" text-anchor="middle" class="tiny">Instruct / execute / inspect</text>
+    <use xlink:href="#robot" transform="translate(1268 636) scale(.91)"/>
+    <use xlink:href="#wrench" transform="translate(1357 733) rotate(-24) scale(.8)"/>
+    <text x="1399" y="690" class="role">Builder</text>
+    <text x="1399" y="726" class="small">One batch tool call</text>
+    <text x="1399" y="757" class="small">Sequential operations</text>
+    <path d="M1408 774 V811" class="wire"/>
+    <rect x="1227" y="821" width="375" height="107" rx="6" class="tool"/>
+    <text x="1251" y="853" class="label" font-weight="700">BatchExecutor + Geometry</text>
+    <text x="1251" y="883" class="small">Real tools; stop at first failure</text>
+    <text x="1251" y="911" class="small">Retain the successful prefix</text>
+    <path d="M1607 604 H1682" class="flow"/>
+  </g>
+
+  <g id="post-build">
+    <text x="1713" y="436" class="small" font-weight="700">03  CONDITIONAL STAGES</text>
+    <rect x="1700" y="459" width="336" height="304" rx="6" class="optional"/>
+    <text x="1727" y="502" class="role">Refine</text>
+    <text x="1727" y="536" class="body">If rotating blocks exist</text>
+    <text x="1727" y="568" class="small">Check / adjust spin direction</text>
+    <path d="M1868 584 V622" class="wire"/>
+    <text x="1727" y="658" class="role">Assemble</text>
+    <text x="1727" y="692" class="body">If multiple substructures</text>
+    <text x="1727" y="724" class="small">Combine approved components</text>
+    <text x="1868" y="793" text-anchor="middle" class="small">Reuse Builder + Guidance</text>
+    <rect x="1700" y="821" width="336" height="107" rx="6" fill="#f7f7f7" stroke="#92989d" stroke-width="2"/>
+    <text x="1723" y="853" class="label" font-weight="700">Completion + Evidence</text>
+    <text x="1723" y="883" class="small">Explicit reviewer approval</text>
+    <text x="1723" y="911" class="small">Fresh evidence before rejection</text>
+    <path d="M2036 604 H2130" class="flow"/>
+    <text x="2081" y="570" text-anchor="middle" class="tiny">or skip</text>
+    <use xlink:href="#document" transform="translate(2182 536) scale(1.04)"/>
+    <text x="2224" y="686" text-anchor="middle" class="role">Game files</text>
+    <text x="2224" y="722" text-anchor="middle" class="body">.bsg + machine JSON</text>
+    <text x="2224" y="759" text-anchor="middle" class="small">Design-approved</text>
+    <text x="2224" y="788" text-anchor="middle" class="small">Physics not yet verified</text>
+    <path d="M2285 604 H2396" class="flow"/>
+  </g>
+
+  <g id="repair-loop">
+    <path d="M1408 930 V967 H633 V449 H692" class="repair"/>
+    <rect x="736" y="947" width="602" height="33" fill="white"/>
+    <text x="1037" y="971" text-anchor="middle" class="body orange">Failure evidence &#8594; local patch + re-review (max 2)</text>
+    <text x="1701" y="976" class="small">Refine / Assemble: legacy dialogue, not recipe batching</text>
+  </g>
+
+  <g id="context">
+    <rect x="664" y="1000" width="938" height="57" rx="5" fill="#edf4f8"/>
+    <text x="684" y="1037" class="body">
+      <tspan font-weight="700">WorkingContext</tspan>
+      <tspan>  = canonical state + recent messages + LLM summary*</tspan>
+    </text>
+    <text x="1701" y="1024" class="small">* Threshold-triggered, structured Draft / Build only.</text>
+    <text x="1701" y="1052" class="small">Canonical geometry and progress are never summarized.</text>
+  </g>
+
+  <g id="shared-runtime">
+    <path d="M61 1120 H2339" stroke="#aab1b6" stroke-width="1.5"/>
+    <text x="65" y="1156" class="label" font-weight="700">Shared runtime</text>
+    <text x="305" y="1149" class="body" font-weight="700">Scheduler + SQLite</text>
+    <text x="305" y="1178" class="small">Tasks, dependencies, workers, checkpoints</text>
+    <text x="930" y="1149" class="body" font-weight="700">Code-enforced geometry</text>
+    <text x="930" y="1178" class="small">Collisions / attachment faces / Brace endpoints</text>
+    <text x="1668" y="1149" class="body" font-weight="700">TracedClient + JSONL / task records</text>
+    <text x="1668" y="1178" class="small">Requests, elapsed time, tokens, versions, batches</text>
+  </g>
+
+  <g id="physics">
+    <rect x="42" y="1250" width="2316" height="286" class="boundary"/>
+    <rect x="75" y="1230" width="768" height="37" fill="white"/>
+    <text x="89" y="1260" class="section">Optional Physics Evaluation (separate run)</text>
+    <text x="2308" y="1291" text-anchor="end" class="small">Construction-only stops above; no game is launched</text>
+
+    <text x="81" y="1343" class="label" font-weight="700">Exported machine</text>
+    <text x="81" y="1378" class="small">+ original task</text>
+    <text x="81" y="1410" class="small">Transport</text>
+    <path d="M280 1364 H350" class="flow"/>
+    <use xlink:href="#robot" transform="translate(373 1297) scale(.8)"/>
+    <use xlink:href="#gamepad" transform="translate(391 1373) scale(.64)"/>
+    <text x="498" y="1348" class="role">Controller</text>
+    <text x="498" y="1382" class="small">Keys + open-loop timing</text>
+    <text x="498" y="1412" class="small">Transport only</text>
+    <path d="M736 1364 H804" class="flow"/>
+    <text x="829" y="1342" class="section">Simulation Adapter</text>
+    <text x="829" y="1377" class="body">Cargo / tracking / Lua / .bsg</text>
+    <text x="829" y="1409" class="small">Task-specific preparation</text>
+    <path d="M1156 1364 H1220" class="flow"/>
+    <text x="1245" y="1342" class="section">Windows Bridge</text>
+    <text x="1245" y="1377" class="body">Native Python + GUI automation</text>
+    <text x="1245" y="1409" class="small">Load / run / stop / capture</text>
+    <path d="M1602 1364 H1666" class="flow"/>
+    <text x="1690" y="1342" class="section">Besiege + Lua</text>
+    <text x="1690" y="1377" class="body">Physical simulation</text>
+    <text x="1690" y="1409" class="small">Trajectory CSV</text>
+    <path d="M1916 1364 H1980" class="flow"/>
+    <text x="2003" y="1342" class="section">Analysis / Results</text>
+    <text x="2003" y="1377" class="body">Task metrics + pass / fail</text>
+    <text x="2003" y="1409" class="small">Evidence, logs, screenshots</text>
+
+    <path d="M1791 1425 V1461 H539 V1425" class="repair"/>
+    <rect x="930" y="1443" width="619" height="33" fill="white"/>
+    <text x="1240" y="1467" text-anchor="middle" class="body orange">Trajectory feedback &#8594; revised control; up to 3 trials</text>
+    <text x="80" y="1510" class="small">Support / Lift bypass Controller and enter the Simulation Adapter directly.</text>
+    <text x="2308" y="1510" text-anchor="end" class="small">Geometry validity &#8800; physical success</text>
+  </g>
+  <text x="60" y="1571" class="tiny">Solid arrows: workflow / interaction   &#183;   Green: optional knowledge   &#183;   Orange dashed arrows: repair or feedback</text>
+  <text x="2340" y="1571" text-anchor="end" class="tiny">Current implementation, not a proposed redesign</text>
+</svg>

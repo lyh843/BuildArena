@@ -276,6 +276,9 @@ class ComparisonTests(unittest.TestCase):
                     )}):
                 manifest = comparison.prepare_comparison(
                     path, model="replay", pairs=1, allow_drafts=True)
+                transport = comparison.prepare_comparison(
+                    root / "transport_comparison/manifest.json", model="replay",
+                    category="transport", level="soft", timeout=21600, allow_drafts=True)
             self.assertEqual(manifest["construction_timeout_seconds"], 7200)
             self.assertEqual(manifest["planner_model_settings"]["timeout"], 600)
             self.assertNotIn("api_key", manifest["planner_model_settings"])
@@ -295,6 +298,27 @@ class ComparisonTests(unittest.TestCase):
                                 for case in manifest["cases"]))
             with self.assertRaises(FileExistsError):
                 comparison.prepare_comparison(path)
+            self.assertEqual(transport["category"], "transport")
+            self.assertEqual(transport["construction_timeout_seconds"], 21600)
+            self.assertEqual(transport["skills"]["category"], "transport")
+            transport_goals = []
+            for case in transport["cases"]:
+                self.assertEqual(case["category"], "transport")
+                self.assertEqual(case["scene"], "Barren Expanse")
+                self.assertTrue(Path(case["db"]).parent.name.startswith("transport_soft_"))
+                with sqlite3.connect(case["db"]) as db:
+                    file_path = db.execute("SELECT file_path FROM config").fetchone()[0]
+                config = load_config(file_path)
+                transport_goals.append(config["project"]["goal"])
+                self.assertIn("at least four wheels", config["project"]["goal"])
+                self.assertEqual("skills" in config, case["arm"] == "with_skills")
+                self.assertEqual(config["agents"], configs[0]["agents"])
+            self.assertEqual(transport_goals[0], transport_goals[1])
+            library = SkillLibrary(transport["skills"]["directory"], allow_drafts=True)
+            eligible = [key for key in library.documents if library.eligible(
+                key, dict(category="transport", level="soft", role="planner", stage="plan"))]
+            self.assertEqual(len(eligible), 5)
+            self.assertTrue(all(key.startswith("transport_") for key in eligible))
 
     def test_report_does_not_equate_construction_with_physics(self):
         row = {

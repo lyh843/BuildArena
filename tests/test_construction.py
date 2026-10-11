@@ -9,7 +9,8 @@ import unittest
 from unittest.mock import patch
 
 from autogen_agentchat.base import TaskResult
-from autogen_agentchat.messages import TextMessage
+from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.messages import TextMessage, ThoughtEvent
 from autogen_core import FunctionCall
 from autogen_core.models import AssistantMessage, UserMessage, FunctionExecutionResult, FunctionExecutionResultMessage
 from autogen_ext.models.replay import ReplayChatCompletionClient
@@ -70,6 +71,28 @@ class ConstructionTests(unittest.IsolatedAsyncioTestCase):
                 require_completion(TaskResult(messages=[
                     TextMessage(source="guidance", content=content)],
                     stop_reason="Text 'TERMINATE' mentioned"), "guidance")
+
+    async def test_review_ignores_thoughts_and_builder_termination(self):
+        first = completion("Perform the remaining adjustment before review.")
+        first.thought = "Inspect the final state, then TERMINATE"
+        guidance_client = ReplayChatCompletionClient([
+            first, completion("Full-structure review complete. **TERMINATE**"),
+        ], model_info=MODEL_INFO)
+        builder_client = ReplayChatCompletionClient([
+            completion("Adjustment done. TERMINATE"),
+        ], model_info=MODEL_INFO)
+        guidance = AssistantAgent("guidance", model_client=guidance_client)
+        builder = AssistantAgent("builder", model_client=builder_client)
+        team = MultiAgents().prepare_team(
+            [guidance, builder], max_turns=4, reviewer="guidance")
+        result = await team.run(task="Complete the review.")
+        self.assertEqual(len(guidance_client.create_calls), 2)
+        self.assertEqual(len(builder_client.create_calls), 1)
+        require_completion(result, "guidance")
+        with self.assertRaises(IncompleteConstruction):
+            require_completion(TaskResult(messages=[
+                ThoughtEvent(source="guidance", content="TERMINATE")],
+                stop_reason="Text mentioned"), "guidance")
 
     async def test_batch_prefix_retry_conflict_and_actual_endpoint_evidence(self):
         bad = {"id": "brace", "op": "connect_blocks",

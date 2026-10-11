@@ -21,7 +21,7 @@ def model_request_settings(client):
     ) if key in config}
 
 
-def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=7200,
+def prepare_comparison(path, *, model=MODEL, category="support", level="soft", pairs=1, timeout=7200,
                        skills_dir=DEFAULT_DIRECTORY, allow_drafts=False):
     from agents import model_clients, planner_model_clients
     from scheduler.task_db import init_db, insert_config, load_config
@@ -33,18 +33,18 @@ def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=7200
         raise ValueError("pairs and timeout must be positive")
     if model not in model_clients:
         raise ValueError("Requested model is not configured")
-    task = find_level_task(load_levels_yaml(str(ROOT / "levels.yaml")), "support", level)
+    task = find_level_task(load_levels_yaml(str(ROOT / "levels.yaml")), category, level)
     if not task:
-        raise ValueError(f"Unknown support level: {level}")
+        raise ValueError(f"Unknown task: {category}/{level}")
     path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     treatment = {}
     configure_planner_skills(
-        treatment, category="support", level=level, snapshot_dir=path.parent / "skills_snapshot",
+        treatment, category=category, level=level, snapshot_dir=path.parent / "skills_snapshot",
         directory=skills_dir, allow_drafts=allow_drafts,
     )
     manifest = {
-        "created_at": datetime.now().isoformat(), "model": model, "pairs": pairs,
+        "created_at": datetime.now().isoformat(), "model": model, "category": category, "pairs": pairs,
         "samples_per_group": pairs, "construction_timeout_seconds": timeout,
         "concurrent_constructions": 2, "workers_per_case": 1,
         "model_settings": model_request_settings(model_clients[model]),
@@ -71,7 +71,7 @@ def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=7200
     for pair in range(1, pairs + 1):
         for arm in (("without_skills", "with_skills") if pair % 2 else
                     ("with_skills", "without_skills")):
-            project = f"support_{level}_{model.replace('.', '-')}_{stamp}_pair{pair}_{arm}"
+            project = f"{category}_{level}_{model.replace('.', '-')}_{stamp}_pair{pair}_{arm}"
             db = ROOT / "datacache" / project / "task_database.db"
             config = load_config(str(ROOT / "prompt.yaml"))
             config.pop("skills", None)
@@ -84,8 +84,9 @@ def prepare_comparison(path, *, model=MODEL, level="soft", pairs=1, timeout=7200
             init_db(str(db))
             insert_config(config, global_config, bind_task="root", db_path=str(db))
             manifest["cases"].append({
-                "pair": pair, "arm": arm, "category": "support", "level": level,
-                "db": str(db), "scene": f"support_{level}", "construction_status": "queued",
+                "pair": pair, "arm": arm, "category": category, "level": level,
+                "db": str(db), "scene": f"support_{level}" if category == "support" else "Barren Expanse",
+                "construction_status": "queued",
                 "log": str(db.parent / "construction.log"),
             })
     save_manifest(path, manifest)
@@ -151,6 +152,7 @@ def main():
     parser.add_argument("phase", choices=("build", "report"))
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--model", default=MODEL)
+    parser.add_argument("--category", choices=("support", "transport", "lift"), default="support")
     parser.add_argument("--level", choices=("soft", "medium", "hard"), default="soft")
     parser.add_argument("--pairs", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=7200)
@@ -160,7 +162,8 @@ def main():
     path = args.manifest.resolve()
     if args.phase == "build":
         manifest = prepare_comparison(
-            path, model=args.model, level=args.level, pairs=args.pairs, timeout=args.timeout,
+            path, model=args.model, category=args.category, level=args.level,
+            pairs=args.pairs, timeout=args.timeout,
             skills_dir=args.skills_dir, allow_drafts=args.allow_draft_skills,
         )
         try:

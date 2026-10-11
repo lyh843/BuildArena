@@ -11,7 +11,7 @@ import uuid
 from autogen_core import CancellationToken
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.base import TaskResult, Response
-from autogen_agentchat.conditions import TextMentionTermination, FunctionalTermination
+from autogen_agentchat.conditions import FunctionalTermination
 from autogen_agentchat.teams import BaseGroupChat, RoundRobinGroupChat
 from autogen_agentchat.messages import TextMessage, BaseChatMessage
 
@@ -22,7 +22,7 @@ from spatial.utils import xml_to_dict
 from agents import model_clients, planner_model_clients
 from scheduler.task_db import Task, get_config, add_task_objection, update_task_raise_objection
 from skill.library import SkillSession, record_event
-from spatial.runtime import TracedClient, WorkingContext, IncompleteConstruction, require_completion
+from spatial.runtime import TracedClient, WorkingContext, IncompleteConstruction, require_completion, is_explicit_review
 from spatial.construction import Blueprint, BatchExecutor, BUILD_OPERATIONS
 
 ProcessContext = namedtuple('ProcessContext', ['context', 'result', 'token_input', 'token_output', 'turn', 'objection'])
@@ -429,7 +429,7 @@ Never emit a stop marker yourself. The runtime handles bounded redesign on failu
             get_token_output(all_messages) + sum(c.summary_output for c in contexts),
             get_turn(all_messages), False)
         
-    def prepare_team(self, participants: List[AssistantAgent], termination_string: str = "TERMINATE", max_turns: int = 50):
+    def prepare_team(self, participants: List[AssistantAgent], termination_string: str = "TERMINATE", max_turns: int = 50, *, reviewer: str):
         """
         Prepare a team of agents.
         
@@ -437,11 +437,14 @@ Never emit a stop marker yourself. The runtime handles bounded redesign on failu
             participants (List[AssistantAgent]): The list of agents to prepare.
             termination_string (str): The string that will be used to terminate the team.
             max_turns (int): The maximum number of turns for the team.
+            reviewer (str): The agent authorized to close the review.
         """
         
         return RoundRobinGroupChat(
             participants=participants, 
-            termination_condition=TextMentionTermination(termination_string), 
+            termination_condition=FunctionalTermination(
+                lambda messages: bool(messages)
+                and is_explicit_review(messages[-1], reviewer, termination_string)),
             max_turns=max_turns
         )
     
@@ -575,7 +578,8 @@ Never emit a stop marker yourself. The runtime handles bounded redesign on failu
         await drafter.on_reset(CancellationToken())
         await draft_reviewer.on_reset(CancellationToken())
         
-        draft_team = self.prepare_team(participants=[drafter, draft_reviewer])
+        draft_team = self.prepare_team(participants=[drafter, draft_reviewer],
+                                       reviewer=draft_reviewer.name)
         draft_result = await self.run_team_stream(draft_team, task, log_path)
         require_completion(draft_result, draft_reviewer.name, objected=objection.objection_raised)
 
@@ -661,7 +665,8 @@ Never emit a stop marker yourself. The runtime handles bounded redesign on failu
         await builder.on_reset(CancellationToken())
         await guidance.on_reset(CancellationToken())
         participants = [builder, guidance] if not refine else [guidance, builder]
-        build_team = self.prepare_team(participants=participants, max_turns=max_turns)
+        build_team = self.prepare_team(participants=participants, max_turns=max_turns,
+                                       reviewer=guidance.name)
         build_result = await self.run_team_stream(build_team, task, log_path)
         
         # Save machine and preview images under the save_dir

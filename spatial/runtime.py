@@ -5,6 +5,7 @@ import re
 import time
 import uuid
 
+from autogen_agentchat.messages import BaseChatMessage
 from autogen_core.model_context import ChatCompletionContext
 from autogen_core.models import (
     AssistantMessage, ChatCompletionClient, FunctionExecutionResultMessage, UserMessage,
@@ -17,17 +18,21 @@ class IncompleteConstruction(RuntimeError):
     pass
 
 
+def is_explicit_review(message, reviewer, marker="TERMINATE"):
+    return (
+        isinstance(message, BaseChatMessage) and message.source == reviewer
+        and isinstance(message.content, str)
+        and re.search(r"(?<![\w])(?:\*\*|__|`)?" + re.escape(marker)
+                      + r"(?:\*\*|__|`)?\s*$", message.content) is not None
+    )
+
+
 def require_completion(result, reviewer, *, objected=False):
     if objected:
         return
     if (result.stop_reason or "").startswith("Maximum number of turns"):
         raise IncompleteConstruction("turn_limit: " + result.stop_reason)
-    if not result.messages or not any(
-        message.source == reviewer and isinstance(message.content, str)
-        and re.search(r"(?<![\w])(?:\*\*|__|`)?TERMINATE(?:\*\*|__|`)?\s*$",
-                      message.content)
-        for message in result.messages[-1:]
-    ):
+    if not result.messages or not is_explicit_review(result.messages[-1], reviewer):
         raise IncompleteConstruction("missing_explicit_review: " + str(result.stop_reason))
 
 

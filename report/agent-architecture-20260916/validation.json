@@ -1,0 +1,10 @@
+{
+  "svg_valid": true,
+  "standalone": true,
+  "width": 2400,
+  "height": 1590,
+  "text_elements": 101,
+  "text_outside_canvas": 0,
+  "text_overlaps": [],
+  "renderer": "system librsvg + Cairo"
+}

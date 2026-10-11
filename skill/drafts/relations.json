@@ -70,5 +70,53 @@
     "reason": "整车未达到侧翻边界时，货物仍可能先滑移或倾覆，必须分别记录两种失效。",
     "condition": "Medium 或 Hard 装载工况且货物满足水平矩形接触的独立前提，不用车辆轮地附着系数替代货物摩擦系数。",
     "review_status": "pending"
+  },
+  {
+    "source": "lift_thrust_alignment",
+    "target": "lift_mass_balance",
+    "type": "uses",
+    "reason": "推进力矩的参考点必须来自整机质量分布，不能使用未加权块中心替代。",
+    "condition": "质量清单完整且位置代理明确；若已有同版本实测质心则直接使用该证据。",
+    "review_status": "pending"
+  },
+  {
+    "source": "lift_thrust_budget",
+    "target": "lift_heating_layout",
+    "type": "uses",
+    "reason": "起飞预算依赖蒸汽状态时，需要逐炮加热候选及独立受热验证。",
+    "condition": "冷态预算不足或加热不确定区间跨越设计要求；几何覆盖不能将推力下界直接升级为蒸汽值。",
+    "review_status": "pending"
+  },
+  {
+    "source": "lift_startup_asymmetry",
+    "target": "lift_heating_layout",
+    "type": "uses",
+    "reason": "配对加热布局用于减少启动时的热状态失配，按键同步本身并不充分。",
+    "condition": "存在多个离轴水炮且其加热建立时间有差异或尚未核对；不能仅凭布局声明同步加热已实现。",
+    "review_status": "pending"
+  },
+  {
+    "source": "lift_symmetric_assembly",
+    "target": "lift_thrust_alignment",
+    "type": "uses",
+    "reason": "独立发动机方向正确不能替代总装坐标下的合推力与质心力矩复核。",
+    "condition": "Hard完成实例放置或接口调整后，使用实际最终变换与同工况推力。",
+    "review_status": "pending"
+  },
+  {
+    "source": "lift_symmetric_assembly",
+    "target": "lift_thrust_budget",
+    "type": "uses",
+    "reason": "底盘、复制实例和总装连接件全部进入起飞质量，不能沿用单发动机预算。",
+    "condition": "Hard的实例数和最终质量清单已明确，全部水炮的反冲方向已核对。",
+    "review_status": "pending"
+  },
+  {
+    "source": "lift_thrust_alignment",
+    "target": "lift_startup_asymmetry",
+    "type": "uses",
+    "reason": "稳态合力与力矩符合要求后，仍需独立考虑启动期间的力差积累。",
+    "condition": "多水炮依赖加热且存在短时失配情景；接触或大角度转动时不使用自由飞行定力矩近似。",
+    "review_status": "pending"
   }
 ]

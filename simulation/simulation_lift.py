@@ -13,7 +13,7 @@ from simulation.dispatch import run_simulation_sequence
 
 from config import SavedMachines
 
-def main(machine_json: str, level: Literal["soft", "medium", "hard"]):
+def main(machine_json: str, level: Literal["soft", "medium", "hard"], *, prepare_only: bool = False):
     """
     Main function for lifting simulation
     """
@@ -66,6 +66,9 @@ def main(machine_json: str, level: Literal["soft", "medium", "hard"]):
     with open(os.path.join(save_dir, f"block_id_{machine_id}_sim.json"), "w", encoding='utf-8') as f:
         json.dump([{block.local_id: block.name} for block in machine.blocks.values()], f)
 
+    if prepare_only:
+        return os.path.join(save_dir, f"{machine_id}_sim.bsg")
+
     # Run simulation sequence
     csv_file = run_simulation_sequence(machine_name=f"{machine_id}_sim", output_dir=save_dir, duration=10 if level == "soft" else 30, set_ground=True)
     return csv_file
@@ -75,5 +78,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run lift simulation')
     parser.add_argument('--machine_json', type=str, required=False, help='Path to the machine JSON file')
     parser.add_argument('--level', type=str, required=False, help='Level of the simulation')
+    parser.add_argument('--prepare-only', action='store_true', help='Export simulation BSG and Lua without operating the game')
     args = parser.parse_args()
-    main(machine_json=args.machine_json, level=args.level)
+    print(main(machine_json=args.machine_json, level=args.level, prepare_only=args.prepare_only))
